@@ -1,5 +1,6 @@
 
-import streamlit as st 
+import streamlit as st
+
 
 
 from datetime import datetime
@@ -274,7 +275,7 @@ if "analysis_counter" not in st.session_state:
 
 
 
-# UTILS
+# OUTILS
 
 
 
@@ -322,11 +323,7 @@ def extract_dtcs(text: str) -> list[str]:
 
 
 
-        r"\bTCU\s*\d{4,6}\.\d{1,2}\b",
-
-
-
-        r"\bECU\s*\d{4,6}\.\d{1,2}\b",
+        r"\b[A-Z]{2,5}\s*\d{3,6}\.\d{1,2}\b",
 
 
 
@@ -374,31 +371,631 @@ def extract_dtcs(text: str) -> list[str]:
 
 
 
-def detect_context(machine, symptoms, dtcs, context, history) -> dict:
+def split_lines(text: str) -> list[str]:
 
 
 
-    text = f"{machine} {symptoms} {dtcs} {context} {history}".lower()
+    if not text:
 
 
 
-    detected = {
+        return []
 
 
 
-        "systems": [],
+    raw = re.split(r"[\n.;]+", text)
 
 
 
-        "conditions": [],
+    return [x.strip() for x in raw if x.strip()]
 
 
 
-        "facts": [],
+# =========================================================
 
 
 
-        "missing": []
+# MODULES GÉNÉRAUX
+
+
+
+# =========================================================
+
+
+
+SYSTEM_MODULES = {
+
+
+
+    "Transmission": {
+
+
+
+        "risk": "Élevé si la machine perd la propulsion, tombe au neutre ou change de comportement en mouvement.",
+
+
+
+        "hypotheses": [
+
+
+
+            "Commande électrique / logique de transmission",
+
+
+
+            "Sélecteur, faisceau, connecteur, masse ou alimentation intermittente",
+
+
+
+            "Capteur de vitesse entrée/sortie ou information incohérente",
+
+
+
+            "Pression de commande, valve, solénoïde ou embrayage interne",
+
+
+
+            "Défaut mécanique interne à confirmer seulement après tests externes"
+
+
+
+        ],
+
+
+
+        "tests": [
+
+
+
+            "Lire codes actifs, inactifs et historiques avec outil compatible.",
+
+
+
+            "Comparer données live : rapport demandé, rapport engagé, vitesse entrée, vitesse sortie.",
+
+
+
+            "Mesurer alimentation et ground du module sous charge.",
+
+
+
+            "Faire wiggle test du faisceau, connecteurs et sélecteur pendant surveillance live.",
+
+
+
+            "Vérifier relais, fusibles, connecteurs exposés eau/sel/vibration.",
+
+
+
+            "Mesurer pression de commande selon procédure OEM si disponible.",
+
+
+
+            "Confirmer si le problème est présent en marche avant, reculons, toutes vitesses, chaud/froid."
+
+
+
+        ]
+
+
+
+    },
+
+
+
+    "Hydraulique": {
+
+
+
+        "risk": "Moyen à élevé selon la fonction touchée, la pression et la possibilité de mouvement incontrôlé.",
+
+
+
+        "hypotheses": [
+
+
+
+            "Pression hydraulique insuffisante ou instable",
+
+
+
+            "Restriction filtre, crépine, huile contaminée ou mauvaise viscosité",
+
+
+
+            "Valve de contrôle qui colle, fuite interne ou commande pilotée incorrecte",
+
+
+
+            "Capteur de pression ou lecture électronique incohérente",
+
+
+
+            "Pompe faible, cavitation ou alimentation d’huile insuffisante"
+
+
+
+        ],
+
+
+
+        "tests": [
+
+
+
+            "Vérifier niveau, qualité, odeur, contamination et température d’huile.",
+
+
+
+            "Contrôler filtre, crépine et présence de limaille.",
+
+
+
+            "Mesurer pression principale, standby, pilotage et pression de fonction.",
+
+
+
+            "Comparer temps de cycle avec spécifications.",
+
+
+
+            "Isoler la fonction touchée et vérifier fuite interne possible.",
+
+
+
+            "Comparer lecture capteur avec manomètre mécanique.",
+
+
+
+            "Vérifier si le problème change avec température, charge ou régime moteur."
+
+
+
+        ]
+
+
+
+    },
+
+
+
+    "Moteur": {
+
+
+
+        "risk": "Moyen à élevé si perte de puissance, surchauffe, pression d’huile ou fumée anormale.",
+
+
+
+        "hypotheses": [
+
+
+
+            "Restriction air, carburant ou échappement",
+
+
+
+            "Pression carburant, rail, pompe ou injecteur à vérifier",
+
+
+
+            "Turbo, EGR, DPF/SCR ou post-traitement limitant la puissance",
+
+
+
+            "Capteur moteur ou faisceau donnant une lecture incohérente",
+
+
+
+            "Problème mécanique moteur à confirmer par tests de base"
+
+
+
+        ],
+
+
+
+        "tests": [
+
+
+
+            "Lire codes actifs/inactifs moteur.",
+
+
+
+            "Vérifier pression carburant, restriction air, boost, EGT et charge moteur.",
+
+
+
+            "Comparer données live à froid et à chaud.",
+
+
+
+            "Inspecter filtre air, filtre carburant, lignes et connecteurs capteurs.",
+
+
+
+            "Vérifier commande turbo/EGR/DPF/SCR si applicable.",
+
+
+
+            "Contrôler pression d’huile, température coolant et restriction échappement.",
+
+
+
+            "Confirmer si le problème apparaît sous charge, au ralenti, à chaud ou au démarrage."
+
+
+
+        ]
+
+
+
+    },
+
+
+
+    "Électrique": {
+
+
+
+        "risk": "Variable, mais élevé si le défaut provoque arrêt, comportement intermittent ou perte de commande.",
+
+
+
+        "hypotheses": [
+
+
+
+            "Mauvaise masse ou alimentation instable",
+
+
+
+            "Connecteur oxydé, fil cassé, faisceau frotté ou intermittent",
+
+
+
+            "Relais, fusible, alimentation module ou circuit sous charge",
+
+
+
+            "Capteur alimenté mais signal de retour incohérent",
+
+
+
+            "Communication CAN/J1939/J1708 ou module qui décroche"
+
+
+
+        ],
+
+
+
+        "tests": [
+
+
+
+            "Mesurer voltage source et chute de voltage sous charge.",
+
+
+
+            "Contrôler grounds principaux et secondaires.",
+
+
+
+            "Inspecter connecteurs exposés eau, sel, vibration, chaleur.",
+
+
+
+            "Faire wiggle test pendant surveillance live.",
+
+
+
+            "Vérifier alimentation, ground et signal de retour des capteurs.",
+
+
+
+            "Vérifier codes de communication et état réseau CAN/J1939/J1708.",
+
+
+
+            "Comparer le schéma électrique avec les points réellement mesurés."
+
+
+
+        ]
+
+
+
+    },
+
+
+
+    "Frein": {
+
+
+
+        "risk": "Critique si frein de service ou stationnement incertain. Immobilisation recommandée jusqu’à validation.",
+
+
+
+        "hypotheses": [
+
+
+
+            "Commande électrique, logique de sécurité ou condition d’autorisation non satisfaite",
+
+
+
+            "Capteur de pression, switch, témoin ou signal de retour incohérent",
+
+
+
+            "Solénoïde/valve alimenté mais non fonctionnel mécaniquement",
+
+
+
+            "Pression air/hydraulique insuffisante ou fuite interne",
+
+
+
+            "Mécanisme de frein collé, usé, mal ajusté ou endommagé"
+
+
+
+        ],
+
+
+
+        "tests": [
+
+
+
+            "Immobiliser la machine si le frein est incertain.",
+
+
+
+            "Lire codes actifs/inactifs liés au frein, TCU, ECU ou contrôleur machine.",
+
+
+
+            "Vérifier commande demandée vs état réel dans les données live.",
+
+
+
+            "Mesurer alimentation, ground et signal de retour capteur/switch.",
+
+
+
+            "Tester solénoïde ou valve sous charge, pas seulement présence de courant.",
+
+
+
+            "Mesurer pression air/hydraulique du circuit concerné.",
+
+
+
+            "Inspecter mécaniquement frein, linkage, ajustement, usure et blocage."
+
+
+
+        ]
+
+
+
+    },
+
+
+
+    "Refroidissement": {
+
+
+
+        "risk": "Élevé si surchauffe ou perte de coolant. Risque de dommage moteur.",
+
+
+
+        "hypotheses": [
+
+
+
+            "Radiateur obstrué, airflow insuffisant ou fan inefficace",
+
+
+
+            "Thermostat, pompe à eau ou circulation coolant insuffisante",
+
+
+
+            "Air dans le système, bouchon pression ou fuite externe/interne",
+
+
+
+            "Capteur température ou lecture erronée",
+
+
+
+            "Charge moteur excessive ou problème secondaire causant chaleur"
+
+
+
+        ],
+
+
+
+        "tests": [
+
+
+
+            "Vérifier niveau coolant, concentration, pression et fuite.",
+
+
+
+            "Inspecter radiateur, fan, courroie, shroud et obstruction extérieure.",
+
+
+
+            "Comparer température entrée/sortie radiateur.",
+
+
+
+            "Tester thermostat, bouchon pression et circulation.",
+
+
+
+            "Comparer lecture capteur avec température externe fiable.",
+
+
+
+            "Vérifier si la surchauffe apparaît au ralenti, sous charge ou en déplacement."
+
+
+
+        ]
+
+
+
+    },
+
+
+
+    "Direction": {
+
+
+
+        "risk": "Élevé si perte de contrôle, coups, direction dure ou comportement imprévisible.",
+
+
+
+        "hypotheses": [
+
+
+
+            "Pression hydraulique de direction insuffisante ou instable",
+
+
+
+            "Valve orbitrol/commande direction qui colle ou fuit",
+
+
+
+            "Cylindre de direction avec fuite interne ou jeu mécanique",
+
+
+
+            "Capteur/commande électronique direction incohérente",
+
+
+
+            "Articulation, pivot, bushing ou composant mécanique usé"
+
+
+
+        ],
+
+
+
+        "tests": [
+
+
+
+            "Vérifier niveau/qualité d’huile hydraulique et contamination.",
+
+
+
+            "Mesurer pression direction selon procédure.",
+
+
+
+            "Comparer réaction gauche/droite, froid/chaud, ralenti/régime.",
+
+
+
+            "Inspecter cylindres, pivots, articulation, bushings et jeu.",
+
+
+
+            "Vérifier valve direction/orbitrol et fuite interne possible.",
+
+
+
+            "Lire codes et données live si direction assistée électroniquement."
+
+
+
+        ]
+
+
+
+    },
+
+
+
+    "PTO / accessoires": {
+
+
+
+        "risk": "Variable, élevé si équipement entraîné peut bouger ou engager de façon imprévue.",
+
+
+
+        "hypotheses": [
+
+
+
+            "Commande électrique/PTO non autorisée ou condition de sécurité absente",
+
+
+
+            "Solénoïde, relais, switch ou faisceau PTO intermittent",
+
+
+
+            "Pression hydraulique/pneumatique insuffisante pour engagement",
+
+
+
+            "Embrayage PTO, arbre, clutch ou composant mécanique usé",
+
+
+
+            "Capteur de position/vitesse PTO incohérent"
+
+
+
+        ],
+
+
+
+        "tests": [
+
+
+
+            "Vérifier conditions d’autorisation PTO selon machine.",
+
+
+
+            "Lire codes liés à PTO/accessoire.",
+
+
+
+            "Mesurer alimentation, ground et commande solénoïde/relais.",
+
+
+
+            "Vérifier pression de commande si hydraulique/pneumatique.",
+
+
+
+            "Surveiller données live : demande PTO, état engagé, vitesse.",
+
+
+
+            "Inspecter mécaniquement arbre, clutch, linkage et sécurité."
+
+
+
+        ]
 
 
 
@@ -406,55 +1003,51 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    # Systèmes détectés comme contexte secondaire
+}
 
 
 
-    if contains_any(text, ["transmission", "zf", "neutre", "neutral", "embraye", "vitesse", "rapport"]):
+# =========================================================
 
 
 
-        detected["systems"].append("Transmission")
+# DÉTECTION GÉNÉRALE
 
 
 
-    if contains_any(text, ["hydraulique", "pression", "pompe", "cylindre", "valve", "huile hydraulique"]):
+# =========================================================
 
 
 
-        detected["systems"].append("Hydraulique")
+def detect_general_facts(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    if contains_any(text, ["moteur", "diesel", "injecteur", "turbo", "egr", "dpf", "fumée", "perte puissance"]):
+    text = f"{machine} {symptoms} {dtcs} {context} {history}".lower()
 
 
 
-        detected["systems"].append("Moteur")
+    dtc_list = extract_dtcs(text)
 
 
 
-    if contains_any(text, ["électrique", "voltage", "batterie", "alternateur", "fusible", "relais", "capteur", "can", "canbus", "faisceau", "courant"]):
+    facts = []
 
 
 
-        detected["systems"].append("Électrique / commande")
+    conditions = []
 
 
 
-    if contains_any(text, ["frein", "brake", "stationnement", "parking brake", "parking"]):
+    tests_done = []
 
 
 
-        detected["systems"].append("Frein")
+    missing = []
 
 
 
-    if contains_any(text, ["chauffe", "surchauffe", "radiateur", "coolant", "prestone", "thermostat", "fan"]):
-
-
-
-        detected["systems"].append("Refroidissement")
+    risk_flags = []
 
 
 
@@ -466,7 +1059,7 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-        detected["conditions"].append("Intermittent / revient")
+        conditions.append("Intermittent / revient")
 
 
 
@@ -474,15 +1067,15 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-        detected["conditions"].append("Constant")
+        conditions.append("Constant")
 
 
 
-    if contains_any(text, ["à chaud", "chaud", "après 15 minutes", "après 20 minutes", "température"]):
+    if contains_any(text, ["à chaud", "chaud", "température", "après 15 minutes", "après 20 minutes"]):
 
 
 
-        detected["conditions"].append("À chaud / température")
+        conditions.append("À chaud / température")
 
 
 
@@ -490,7 +1083,7 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-        detected["conditions"].append("À froid")
+        conditions.append("À froid / démarrage")
 
 
 
@@ -498,19 +1091,35 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-        detected["conditions"].append("Présent froid comme chaud")
+        conditions.append("Présent froid comme chaud")
 
 
 
-    if contains_any(text, ["peu importe la vitesse", "toutes les vitesses", "tous les rapports", "n'importe quelle vitesse"]):
+    if contains_any(text, ["sous charge", "en charge", "charge", "pente", "travail fort"]):
 
 
 
-        detected["conditions"].append("Présent dans toutes les vitesses")
+        conditions.append("Sous charge")
 
 
 
-    # Faits terrain
+    if contains_any(text, ["ralenti", "idle"]):
+
+
+
+        conditions.append("Au ralenti")
+
+
+
+    if contains_any(text, ["peu importe la vitesse", "toutes les vitesses", "tous les rapports"]):
+
+
+
+        conditions.append("Toutes vitesses / tous rapports")
+
+
+
+    # Symptômes / faits
 
 
 
@@ -518,23 +1127,107 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-        detected["facts"].append("Aucun code rapporté")
+        facts.append("Aucun code rapporté")
 
 
 
-    if contains_any(text, ["lumière témoin", "lumiere temoin", "témoin", "temoin", "voyant", "ne s'allume pas", "ne s allume pas"]):
+    if dtc_list:
 
 
 
-        detected["facts"].append("Témoin / voyant ne confirme pas l’état")
+        facts.append("Codes présents")
 
 
 
-    if contains_any(text, ["filtre ok", "filtre remplacé", "filtre changé", "filtre neuf"]):
+    if contains_any(text, ["voyant", "témoin", "temoin", "lumière", "lumiere", "warning"]):
 
 
 
-        detected["facts"].append("Filtre déclaré OK")
+        facts.append("Voyant / témoin mentionné")
+
+
+
+    if contains_any(text, ["ne s'allume pas", "ne s allume pas", "pas de lumière", "pas de lumiere"]):
+
+
+
+        facts.append("Témoin ne s’allume pas")
+
+
+
+    if contains_any(text, ["ne fonctionne pas", "fonctionne pas", "ne marche pas", "pas de réaction"]):
+
+
+
+        facts.append("Fonction ne répond pas")
+
+
+
+    if contains_any(text, ["ne s'applique pas", "ne s applique pas", "ne s'engage pas", "ne s engage pas"]):
+
+
+
+        facts.append("Ne s’applique / ne s’engage pas")
+
+
+
+    if contains_any(text, ["ne relâche pas", "ne relache pas", "reste engagé", "reste engage"]):
+
+
+
+        facts.append("Ne relâche pas / reste engagé")
+
+
+
+    if contains_any(text, ["tombe au neutre", "tombe au neutral", "perd la propulsion"]):
+
+
+
+        facts.append("Perte de propulsion / tombe au neutre")
+
+
+
+    if contains_any(text, ["bruit", "cogne", "claque", "gronde", "siffle", "vibration"]):
+
+
+
+        facts.append("Bruit / vibration mentionné")
+
+
+
+    if contains_any(text, ["fuite", "coule", "perte d'huile", "perte huile", "leak"]):
+
+
+
+        facts.append("Fuite mentionnée")
+
+
+
+    if contains_any(text, ["chauffe", "surchauffe", "température haute", "overheat"]):
+
+
+
+        facts.append("Surchauffe / température élevée")
+
+
+
+    if contains_any(text, ["perte puissance", "manque de force", "boucanne", "fumée", "fumee"]):
+
+
+
+        facts.append("Perte de puissance / fumée")
+
+
+
+    if contains_any(text, ["reset", "redémarre", "redemarre", "arrête repart", "arrete repart"]):
+
+
+
+        facts.append("Reset / redémarrage change le comportement")
+
+
+
+    # Tests déjà faits
 
 
 
@@ -542,23 +1235,31 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-        detected["facts"].append("Huile / niveau déclaré OK")
+        tests_done.append("Huile / niveau déclaré OK")
 
 
 
-    if contains_any(text, ["arrête repart", "redémarre", "reset", "sélecteur au neutre", "remets le sélecteur", "repart normalement"]):
+    if contains_any(text, ["filtre ok", "filtre remplacé", "filtre change", "filtre changé", "filtre neuf"]):
 
 
 
-        detected["facts"].append("Reset / arrêt / sélecteur permet de repartir")
+        tests_done.append("Filtre déclaré OK/remplacé")
 
 
 
-    if contains_any(text, ["courant ok", "courant sur", "voltage ok", "alimentation ok"]):
+    if contains_any(text, ["courant ok", "voltage ok", "alimentation ok", "courant sur"]):
 
 
 
-        detected["facts"].append("Courant / alimentation déclaré OK")
+        tests_done.append("Courant / alimentation déclaré OK")
+
+
+
+    if contains_any(text, ["pression ok", "pression bonne"]):
+
+
+
+        tests_done.append("Pression déclarée OK")
 
 
 
@@ -566,1095 +1267,211 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-        detected["facts"].append("Solénoïde mentionné")
+        tests_done.append("Solénoïde mentionné")
 
 
 
-    if contains_any(text, ["capteur de pression"]):
+    if contains_any(text, ["capteur"]):
 
 
 
-        detected["facts"].append("Capteur de pression mentionné")
+        tests_done.append("Capteur mentionné")
 
 
 
-    # Infos manquantes
+    if contains_any(text, ["faisceau", "connecteur", "ground", "masse", "wiggle"]):
 
 
 
-    if not extract_dtcs(dtcs + " " + symptoms + " " + context):
+        tests_done.append("Faisceau/connecteur/masse mentionné")
 
 
 
-        detected["missing"].append("Codes DTC/SPN/FMI exacts ou capture outil diagnostic")
+    # Risques
 
 
 
-    if not contains_any(text, ["pression", "voltage", "donnée live", "live data", "paramètre", "courant"]):
+    if contains_any(text, ["frein", "brake", "stationnement", "parking brake"]):
 
 
 
-        detected["missing"].append("Données live : voltage, pression, états d’entrée/sortie module")
+        risk_flags.append("Système de freinage ou immobilisation impliqué")
 
 
 
-    if not contains_any(text, ["connecteur", "faisceau", "wiggle", "masse", "ground"]):
+    if contains_any(text, ["tombe au neutre", "perd la propulsion", "direction", "ne freine pas"]):
 
 
 
-        detected["missing"].append("Inspection connecteurs/faisceau/masses")
+        risk_flags.append("Risque opérationnel ou sécurité")
 
 
 
-    return detected
+    # Manquants
 
 
 
-# =========================================================
+    if not dtc_list and "Aucun code rapporté" not in facts:
 
 
 
-# ENGINE V0.3.1 — PRIORITÉ AU SYSTÈME CHOISI
+        missing.append("Codes actifs/inactifs ou mention claire qu’il n’y en a pas")
 
 
 
-# =========================================================
+    if not contains_any(text, ["année", "202", "201", "200", "modèle", "modele"]):
 
 
 
-def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
+        missing.append("Année/modèle exact si non indiqué")
 
 
 
-    detected = detect_context(machine, symptoms, dtcs, context, history)
+    if not contains_any(text, ["heures", "hrs", "km", "h "]):
 
 
 
-    dtc_list = extract_dtcs(dtcs + " " + symptoms + " " + context)
+        missing.append("Heures/km de la machine")
 
 
 
-    systems_detected = detected["systems"]
+    if not contains_any(text, ["donnée live", "données live", "live data", "paramètre", "parametre"]):
 
 
 
-    facts = detected["facts"]
+        missing.append("Données live pertinentes selon le système")
 
 
 
-    conditions = detected["conditions"]
+    if not contains_any(text, ["schéma", "schema", "manuel", "oem", "procédure", "procedure"]):
 
 
 
-    text = f"{machine} {symptoms} {dtcs} {context} {history}".lower()
+        missing.append("Référence manuel/schéma OEM")
 
 
 
-    hypotheses = []
+    return {
 
 
 
-    tests = []
+        "dtcs": dtc_list,
 
 
 
-    prudence = []
+        "facts": list(dict.fromkeys(facts)),
 
 
 
-    summary = ""
+        "conditions": list(dict.fromkeys(conditions)),
 
 
 
-    severity = "À évaluer"
+        "tests_done": list(dict.fromkeys(tests_done)),
 
 
 
-    risk = "Analyse préliminaire. Validation humaine obligatoire avant réparation ou remise en service."
+        "missing": list(dict.fromkeys(missing)),
 
 
 
-    # Priorité absolue au choix du mécanicien
+        "risk_flags": list(dict.fromkeys(risk_flags)),
 
 
 
-    primary_system = selected_system
+        "raw_lines": split_lines(symptoms + "\n" + context + "\n" + history)
 
 
 
-    if selected_system == "Autre / inconnu":
+    }
 
 
 
-        primary_system = systems_detected[0] if systems_detected else "Inconnu"
+def choose_primary_system(selected_system: str, text: str) -> str:
 
 
 
-    # Détections spéciales
+    if selected_system != "Autre / inconnu":
 
 
 
-    parking_brake_problem = contains_any(
+        return selected_system
 
 
 
-        text,
+    t = text.lower()
 
 
 
-        ["parking brake", "frein de stationnement", "stationnement", "parking"]
+    system_keywords = {
 
 
 
-    )
+        "Frein": ["frein", "brake", "stationnement", "parking brake"],
 
 
 
-    does_not_apply = contains_any(
+        "Transmission": ["transmission", "zf", "rapport", "neutre", "embraye"],
 
 
 
-        text,
+        "Hydraulique": ["hydraulique", "pompe", "pression", "cylindre", "valve"],
 
 
 
-        [
+        "Moteur": ["moteur", "diesel", "turbo", "injecteur", "dpf", "egr"],
 
 
 
-            "ne s'applique pas",
+        "Électrique": ["électrique", "courant", "voltage", "faisceau", "connecteur", "capteur", "can"],
 
 
 
-            "ne s applique pas",
+        "Refroidissement": ["radiateur", "coolant", "surchauffe", "thermostat", "fan"],
 
 
 
-            "ne s'engage pas",
+        "Direction": ["direction", "steering", "articulation", "orbitrol"],
 
 
 
-            "ne s engage pas",
+        "PTO / accessoires": ["pto", "prise de force", "accessoire", "souffleuse", "blower"]
 
 
 
-            "pas appliquer",
+    }
 
 
 
-            "pas appliqué",
+    for system, words in system_keywords.items():
 
 
 
-            "pas engage",
+        if contains_any(t, words):
 
 
 
-            "pas engagé"
+            return system
 
 
 
-        ]
+    return "Inconnu"
 
 
 
-    )
+def build_hypotheses(primary_system: str, detected: dict) -> list[dict]:
 
 
 
-    witness_light_problem = contains_any(
+    module = SYSTEM_MODULES.get(primary_system)
 
 
 
-        text,
+    if not module:
 
 
 
-        ["lumière témoin", "lumiere temoin", "témoin", "temoin", "voyant", "ne s'allume pas", "ne s allume pas"]
-
-
-
-    )
-
-
-
-    current_verified = contains_any(
-
-
-
-        text,
-
-
-
-        [
-
-
-
-            "courant ok",
-
-
-
-            "courant sur",
-
-
-
-            "voltage ok",
-
-
-
-            "alimentation ok",
-
-
-
-            "courant solénoïde",
-
-
-
-            "courant solenoide",
-
-
-
-            "courant capteur",
-
-
-
-            "courant sélecteur",
-
-
-
-            "courant selecteur"
-
-
-
-        ]
-
-
-
-    )
-
-
-
-    tcu_codes = [code for code in dtc_list if code.upper().startswith("TCU")]
-
-
-
-    # -----------------------------------------------------
-
-
-
-    # FREIN / PARKING BRAKE
-
-
-
-    # -----------------------------------------------------
-
-
-
-    if primary_system == "Frein":
-
-
-
-        summary = "Le problème décrit concerne principalement le frein ou sa commande."
-
-
-
-        if parking_brake_problem:
-
-
-
-            summary = "Le problème décrit concerne le parking brake / frein de stationnement : il ne s’applique pas ou sa commande ne confirme pas l’état attendu."
-
-
-
-        hypotheses = [
-
-
-
-            {
-
-
-
-                "title": "Commande logique du parking brake / condition d’autorisation non satisfaite",
-
-
-
-                "support": [
-
-
-
-                    "Le système principal sélectionné est Frein.",
-
-
-
-                    "Le problème touche le parking brake." if parking_brake_problem else "Le type exact de frein doit être confirmé.",
-
-
-
-                    "Le témoin ne s’allume pas ou ne confirme pas l’état." if witness_light_problem else "L’état du témoin doit être confirmé.",
-
-
-
-                    "Des codes TCU sont présents." if tcu_codes else "Aucun code TCU structuré détecté."
-
-
-
-                ],
-
-
-
-                "limits": [
-
-
-
-                    "Un courant présent à un composant ne confirme pas que le module reçoit ou interprète correctement le signal.",
-
-
-
-                    "Il faut valider les entrées/sorties du TCU selon le schéma et le manuel John Deere.",
-
-
-
-                    "La description exacte des codes TCU doit être confirmée avec la documentation OEM."
-
-
-
-                ]
-
-
-
-            },
-
-
-
-            {
-
-
-
-                "title": "Capteur de pression ou signal de retour mal interprété",
-
-
-
-                "support": [
-
-
-
-                    "Le capteur de pression est mentionné." if "Capteur de pression mentionné" in facts else "Le capteur de pression doit être validé.",
-
-
-
-                    "Le module peut recevoir une valeur incohérente même si l’alimentation est présente.",
-
-
-
-                    "Un code TCU peut indiquer un problème d’entrée, signal ou plage de fonctionnement."
-
-
-
-                ],
-
-
-
-                "limits": [
-
-
-
-                    "Mesurer le signal de retour, pas seulement l’alimentation.",
-
-
-
-                    "Comparer la lecture réelle du capteur avec ce que le TCU affiche en données live.",
-
-
-
-                    "Vérifier alimentation, ground et signal sous charge."
-
-
-
-                ]
-
-
-
-            },
-
-
-
-            {
-
-
-
-                "title": "Solénoïde de parking brake alimenté mais non fonctionnel mécaniquement",
-
-
-
-                "support": [
-
-
-
-                    "Le solénoïde est mentionné." if "Solénoïde mentionné" in facts else "L’état du solénoïde doit être confirmé.",
-
-
-
-                    "Courant OK ne veut pas dire que le solénoïde bouge ou que la valve travaille.",
-
-
-
-                    "Le frein ne s’applique pas." if does_not_apply else "L’application réelle du frein doit être confirmée."
-
-
-
-                ],
-
-
-
-                "limits": [
-
-
-
-                    "Tester l’activation réelle du solénoïde.",
-
-
-
-                    "Écouter/sentir le clic, mesurer résistance, vérifier la commande sous charge.",
-
-
-
-                    "Vérifier si la valve est collée ou si le circuit hydraulique/pneumatique réagit."
-
-
-
-                ]
-
-
-
-            },
-
-
-
-            {
-
-
-
-                "title": "Circuit hydraulique ou pression de commande du frein de stationnement",
-
-
-
-                "support": [
-
-
-
-                    "Le frein ne s’applique pas malgré des vérifications électriques.",
-
-
-
-                    "Huile/filtre déclarés OK réduisent la piste entretien de base." if ("Huile / niveau déclaré OK" in facts or "Filtre déclaré OK" in facts) else "État huile/filtre à confirmer."
-
-
-
-                ],
-
-
-
-                "limits": [
-
-
-
-                    "Mesurer la pression réelle du circuit de parking brake.",
-
-
-
-                    "Vérifier valve, restriction, fuite interne ou blocage mécanique.",
-
-
-
-                    "Ne pas conclure électrique seulement si la commande est présente."
-
-
-
-                ]
-
-
-
-            }
-
-
-
-        ]
-
-
-
-        tests = [
-
-
-
-            "Confirmer la signification exacte des codes TCU dans le manuel John Deere pour 772G 2007.",
-
-
-
-            "Lire les données live TCU : commande parking brake demandée, état du sélecteur, état capteur pression, retour témoin.",
-
-
-
-            "Vérifier non seulement le courant, mais aussi le signal de retour du capteur de pression.",
-
-
-
-            "Tester le solénoïde parking brake sous charge : alimentation, ground, résistance, activation réelle.",
-
-
-
-            "Vérifier si le TCU autorise ou bloque l’application du parking brake selon les conditions machine.",
-
-
-
-            "Contrôler le circuit hydraulique/pneumatique de parking brake : pression, valve, restriction, fuite interne.",
-
-
-
-            "Comparer le schéma électrique : sélecteur, témoin, capteur pression, solénoïde, TCU.",
-
-
-
-            "Vérifier si les codes reviennent immédiatement après effacement/redémarrage."
-
-
-
-        ]
-
-
-
-        severity = "Critique"
-
-
-
-        risk = "Frein de stationnement non fonctionnel : ne pas remettre la machine en service tant que l’application réelle du frein n’est pas confirmée."
-
-
-
-    # -----------------------------------------------------
-
-
-
-    # TRANSMISSION
-
-
-
-    # -----------------------------------------------------
-
-
-
-    elif primary_system == "Transmission":
-
-
-
-        summary = "Le problème décrit concerne principalement la transmission ou sa commande."
-
-
-
-        hypotheses = [
-
-
-
-            {
-
-
-
-                "title": "Commande électrique / logique transmission à vérifier",
-
-
-
-                "support": [
-
-
-
-                    "Le système principal sélectionné est Transmission.",
-
-
-
-                    "Transmission ou commande de rapport mentionnée dans les symptômes.",
-
-
-
-                    "Reset ou retour au neutre mentionné." if "Reset / arrêt / sélecteur permet de repartir" in facts else "Comportement après reset à préciser."
-
-
-
-                ],
-
-
-
-                "limits": [
-
-
-
-                    "Sans données live, impossible de confirmer si la transmission reçoit une demande de neutre ou si elle décroche.",
-
-
-
-                    "Comparer rapport demandé, rapport engagé et alimentation du module."
-
-
-
-                ]
-
-
-
-            },
-
-
-
-            {
-
-
-
-                "title": "Faisceau, connecteur, masse ou alimentation intermittente",
-
-
-
-                "support": [
-
-
-
-                    "Compatible avec une panne qui revient ou intermittente.",
-
-
-
-                    "Peut ne pas toujours générer un code mémorisé."
-
-
-
-                ],
-
-
-
-                "limits": [
-
-
-
-                    "Valider par chute de voltage, wiggle test et inspection des connecteurs.",
-
-
-
-                    "Ne pas conclure au module avant d’avoir validé alimentation et masses."
-
-
-
-                ]
-
-
-
-            },
-
-
-
-            {
-
-
-
-                "title": "Capteur vitesse / signal CAN / information incohérente",
-
-
-
-                "support": [
-
-
-
-                    "Une incohérence de vitesse entrée/sortie peut forcer un mode protection."
-
-
-
-                ],
-
-
-
-                "limits": [
-
-
-
-                    "Nécessite lecture live des paramètres.",
-
-
-
-                    "Un code peut être absent si l’événement est trop bref ou non mémorisé."
-
-
-
-                ]
-
-
-
-            }
-
-
-
-        ]
-
-
-
-        tests = [
-
-
-
-            "Lire codes actifs, inactifs et historiques transmission.",
-
-
-
-            "Surveiller rapport demandé, rapport engagé, vitesse entrée et vitesse sortie.",
-
-
-
-            "Mesurer alimentation et ground du module transmission sous charge.",
-
-
-
-            "Faire wiggle test du faisceau, connecteurs et sélecteur.",
-
-
-
-            "Vérifier relais, fusibles et connecteurs exposés à eau/sel/vibration.",
-
-
-
-            "Tester pression de commande transmission selon procédure OEM si disponible."
-
-
-
-        ]
-
-
-
-        severity = "Élevé"
-
-
-
-        risk = "Transmission qui tombe au neutre en roulant : risque opérationnel important."
-
-
-
-    # -----------------------------------------------------
-
-
-
-    # HYDRAULIQUE
-
-
-
-    # -----------------------------------------------------
-
-
-
-    elif primary_system == "Hydraulique":
-
-
-
-        summary = "Le problème décrit semble toucher un circuit hydraulique ou une commande hydraulique."
-
-
-
-        hypotheses = [
-
-
-
-            {
-
-
-
-                "title": "Pression hydraulique insuffisante ou instable",
-
-
-
-                "support": ["Système principal sélectionné : Hydraulique."],
-
-
-
-                "limits": ["Impossible de confirmer sans mesure de pression."]
-
-
-
-            },
-
-
-
-            {
-
-
-
-                "title": "Valve de contrôle qui colle ou fuite interne",
-
-
-
-                "support": ["Possible si une fonction ne répond pas correctement."],
-
-
-
-                "limits": ["À confirmer par test de pression et temps de cycle."]
-
-
-
-            }
-
-
-
-        ]
-
-
-
-        tests = [
-
-
-
-            "Contrôler niveau, qualité et température d’huile hydraulique.",
-
-
-
-            "Mesurer pression principale et standby.",
-
-
-
-            "Comparer temps de cycle avec spécifications.",
-
-
-
-            "Vérifier valve, restriction, fuite interne ou blocage."
-
-
-
-        ]
-
-
-
-        severity = "Moyen à élevé"
-
-
-
-        risk = "Valider pression et sécurité avant usage intensif."
-
-
-
-    # -----------------------------------------------------
-
-
-
-    # MOTEUR
-
-
-
-    # -----------------------------------------------------
-
-
-
-    elif primary_system == "Moteur":
-
-
-
-        summary = "Le problème décrit semble toucher le moteur ou un système moteur."
-
-
-
-        hypotheses = [
-
-
-
-            {
-
-
-
-                "title": "Restriction air/carburant ou pression insuffisante",
-
-
-
-                "support": ["Système principal sélectionné : Moteur."],
-
-
-
-                "limits": ["À confirmer avec données live et pression."]
-
-
-
-            },
-
-
-
-            {
-
-
-
-                "title": "EGR / DPF / turbo / capteur moteur",
-
-
-
-                "support": ["Possible selon codes et symptômes."],
-
-
-
-                "limits": ["Ne pas conclure sans codes et paramètres moteur."]
-
-
-
-            }
-
-
-
-        ]
-
-
-
-        tests = [
-
-
-
-            "Lire codes actifs/inactifs moteur.",
-
-
-
-            "Vérifier pression carburant, boost, restriction air et EGT.",
-
-
-
-            "Comparer données live à froid et à chaud.",
-
-
-
-            "Inspecter filtres et connecteurs capteurs."
-
-
-
-        ]
-
-
-
-        severity = "Moyen"
-
-
-
-        risk = "Surveiller température, pression huile et alertes moteur."
-
-
-
-    # -----------------------------------------------------
-
-
-
-    # ÉLECTRIQUE
-
-
-
-    # -----------------------------------------------------
-
-
-
-    elif primary_system == "Électrique":
-
-
-
-        summary = "Le problème décrit semble lié à une commande électrique, un capteur, un faisceau ou une alimentation."
-
-
-
-        hypotheses = [
-
-
-
-            {
-
-
-
-                "title": "Mauvaise masse ou alimentation instable",
-
-
-
-                "support": ["Système principal sélectionné : Électrique."],
-
-
-
-                "limits": ["Doit être confirmé par chute de voltage sous charge."]
-
-
-
-            },
-
-
-
-            {
-
-
-
-                "title": "Connecteur oxydé / fil cassé / faisceau intermittent",
-
-
-
-                "support": ["Compatible avec vibration, humidité, chaleur ou panne qui revient."],
-
-
-
-                "limits": ["Inspection visuelle seule insuffisante : wiggle test recommandé."]
-
-
-
-            }
-
-
-
-        ]
-
-
-
-        tests = [
-
-
-
-            "Faire test de chute de voltage sous charge.",
-
-
-
-            "Contrôler grounds principaux et secondaires.",
-
-
-
-            "Inspecter connecteurs exposés eau/sel/vibration.",
-
-
-
-            "Faire wiggle test pendant surveillance live.",
-
-
-
-            "Vérifier tension CAN H/CAN L et codes communication."
-
-
-
-        ]
-
-
-
-        severity = "Moyen à élevé"
-
-
-
-        risk = "Panne électrique intermittente : risque de comportement imprévisible."
-
-
-
-    # -----------------------------------------------------
-
-
-
-    # DEFAULT
-
-
-
-    # -----------------------------------------------------
-
-
-
-    else:
-
-
-
-        summary = "Les informations ne permettent pas encore d’identifier clairement un système principal."
-
-
-
-        hypotheses = [
+        return [
 
 
 
@@ -1666,11 +1483,31 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
-                "support": ["Le texte ne contient pas assez de détails techniques exploitables."],
+                "support": [
 
 
 
-                "limits": ["Ajouter système, marque/modèle, symptômes précis, codes et conditions."]
+                    "Aucun système clair n’a été sélectionné ou détecté.",
+
+
+
+                    "Les symptômes doivent être reliés à un système mécanique précis."
+
+
+
+                ],
+
+
+
+                "limits": [
+
+
+
+                    "Ajouter système principal, codes, conditions, tests déjà faits et comportement exact."
+
+
+
+                ]
 
 
 
@@ -1682,27 +1519,43 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
-        tests = [
+    facts = detected["facts"]
 
 
 
-            "Ajouter marque, modèle, année, moteur/transmission.",
+    tests_done = detected["tests_done"]
 
 
 
-            "Décrire exactement le symptôme et quand il arrive.",
+    conditions = detected["conditions"]
 
 
 
-            "Ajouter codes actifs/inactifs ou mentionner qu’il n’y en a pas.",
+    hypotheses = []
 
 
 
-            "Préciser chaud/froid, vitesse, charge, intermittent/constant.",
+    for item in module["hypotheses"]:
 
 
 
-            "Ajouter travaux récents et tests déjà faits."
+        support = [
+
+
+
+            f"Système principal : {primary_system}.",
+
+
+
+            "Symptôme/faits observés : " + ", ".join(facts) if facts else "Peu de faits confirmés dans l’entrée.",
+
+
+
+            "Conditions : " + ", ".join(conditions) if conditions else "Conditions de panne à préciser.",
+
+
+
+            "Tests déjà faits : " + ", ".join(tests_done) if tests_done else "Tests déjà faits non précisés."
 
 
 
@@ -1710,51 +1563,295 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
-        severity = "Inconnu"
+        limits = [
 
 
 
-        risk = "Données insuffisantes. Analyse préliminaire seulement."
+            "Hypothèse à vérifier, pas conclusion finale.",
 
 
 
-    # Prudence commune
+            "Confirmer avec mesures, données live, schéma ou procédure OEM.",
 
 
 
-    if tcu_codes:
+            "Ne pas remplacer de pièce sans test de confirmation."
 
 
 
-        prudence.append("Codes TCU détectés : utiliser la description OEM exacte avant de conclure. Le code seul ne suffit pas.")
+        ]
 
 
 
-    if current_verified:
+        hypotheses.append({
 
 
 
-        prudence.append("Courant présent ne confirme pas le fonctionnement réel. Vérifier signal de retour, charge, ground et activation mécanique.")
+            "title": item,
 
 
 
-    if "Aucun code rapporté" in facts:
+            "support": support,
 
 
 
-        prudence.append("Aucun code ne veut pas dire aucun problème. Une panne de commande, masse, signal ou hydraulique peut ne pas être mémorisée.")
+            "limits": limits
 
 
 
-    if "Filtre déclaré OK" in facts and "Huile / niveau déclaré OK" in facts:
+        })
 
 
 
-        prudence.append("Filtre OK + huile OK : éviter de rester bloqué sur l’entretien de base; passer aux tests de commande, pression, faisceau et données live.")
+    return hypotheses
 
 
 
-    if "Intermittent / revient" in conditions:
+def build_universal_tests(primary_system: str, detected: dict) -> list[str]:
+
+
+
+    base_tests = [
+
+
+
+        "Sécuriser la machine et confirmer si elle peut être utilisée sans risque.",
+
+
+
+        "Reformuler le symptôme exact : ce qui arrive, quand, combien de fois, dans quelles conditions.",
+
+
+
+        "Lire codes actifs, inactifs et historiques avec l’outil adapté.",
+
+
+
+        "Vérifier les bases : niveaux, qualité fluide, alimentation, grounds, connecteurs visibles.",
+
+
+
+        "Reproduire le problème de façon contrôlée si sécuritaire.",
+
+
+
+        "Comparer commande demandée vs réaction réelle avec données live si disponibles."
+
+
+
+    ]
+
+
+
+    module = SYSTEM_MODULES.get(primary_system)
+
+
+
+    if module:
+
+
+
+        specific_tests = module["tests"]
+
+
+
+    else:
+
+
+
+        specific_tests = [
+
+
+
+            "Identifier le système principal avant de conclure.",
+
+
+
+            "Ajouter données live ou mesures objectives.",
+
+
+
+            "Comparer avec schéma/manuel OEM."
+
+
+
+        ]
+
+
+
+    return list(dict.fromkeys(base_tests + specific_tests))
+
+
+
+def determine_severity(primary_system: str, detected: dict) -> tuple[str, str]:
+
+
+
+    risk_flags = detected["risk_flags"]
+
+
+
+    facts = detected["facts"]
+
+
+
+    if primary_system == "Frein":
+
+
+
+        return (
+
+
+
+            "Critique",
+
+
+
+            "Frein ou immobilisation impliqué : ne pas remettre en service tant que le fonctionnement réel n’est pas confirmé."
+
+
+
+        )
+
+
+
+    if "Risque opérationnel ou sécurité" in risk_flags:
+
+
+
+        return (
+
+
+
+            "Élevé",
+
+
+
+            "Risque opérationnel : diagnostic et validation requis avant utilisation normale."
+
+
+
+        )
+
+
+
+    if primary_system in ["Transmission", "Direction"]:
+
+
+
+        return (
+
+
+
+            "Élevé",
+
+
+
+            SYSTEM_MODULES.get(primary_system, {}).get("risk", "Risque élevé à valider.")
+
+
+
+        )
+
+
+
+    if "Surchauffe / température élevée" in facts:
+
+
+
+        return (
+
+
+
+            "Élevé",
+
+
+
+            "Surchauffe ou température élevée : risque de dommage si ignoré."
+
+
+
+        )
+
+
+
+    if primary_system in SYSTEM_MODULES:
+
+
+
+        return (
+
+
+
+            "Moyen à élevé",
+
+
+
+            SYSTEM_MODULES[primary_system]["risk"]
+
+
+
+        )
+
+
+
+    return (
+
+
+
+        "À évaluer",
+
+
+
+        "Données insuffisantes. Analyse préliminaire seulement."
+
+
+
+    )
+
+
+
+def build_prudence(primary_system: str, detected: dict) -> list[str]:
+
+
+
+    prudence = []
+
+
+
+    if detected["dtcs"]:
+
+
+
+        prudence.append("Codes détectés : utiliser la description OEM exacte avant de conclure. Le code seul ne suffit pas.")
+
+
+
+    if "Aucun code rapporté" in detected["facts"]:
+
+
+
+        prudence.append("Aucun code ne veut pas dire aucun problème. Une panne mécanique, hydraulique ou électrique peut ne pas être mémorisée.")
+
+
+
+    if "Courant / alimentation déclaré OK" in detected["tests_done"]:
+
+
+
+        prudence.append("Courant présent ne confirme pas le fonctionnement réel : vérifier signal de retour, ground, charge et activation mécanique.")
+
+
+
+    if "Filtre déclaré OK/remplacé" in detected["tests_done"] or "Huile / niveau déclaré OK" in detected["tests_done"]:
+
+
+
+        prudence.append("Entretien de base déclaré OK : passer aux tests de commande, pression, signal, faisceau et données live.")
+
+
+
+    if "Intermittent / revient" in detected["conditions"]:
 
 
 
@@ -1762,47 +1859,159 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
-    if not dtc_list:
+    if primary_system == "Frein":
 
 
 
-        prudence.append("Aucun DTC structuré détecté dans le texte. Ajouter les codes exacts si disponibles.")
+        prudence.append("Pour un frein, la validation mécanique réelle prime sur le témoin ou le courant mesuré.")
 
 
 
-    confidence_label = "Préliminaire"
+    prudence.append("MecaTech IA structure le diagnostic; la décision finale appartient au mécanicien qualifié.")
 
 
 
-    if len(facts) >= 3 and len(conditions) >= 1:
+    return list(dict.fromkeys(prudence))
 
 
 
-        confidence_label = "Moyenne — nécessite tests"
+def confidence_label(detected: dict) -> str:
 
 
 
-    if dtc_list and len(facts) >= 2:
+    score = 0
 
 
 
-        confidence_label = "Moyenne+ — codes présents, validation OEM requise"
+    if detected["dtcs"]:
 
 
 
-    systems_output = [primary_system]
+        score += 2
 
 
 
-    for sys in systems_detected:
+    if detected["facts"]:
 
 
 
-        if sys not in systems_output:
+        score += 1
 
 
 
-            systems_output.append(sys)
+    if detected["conditions"]:
+
+
+
+        score += 1
+
+
+
+    if detected["tests_done"]:
+
+
+
+        score += 1
+
+
+
+    if len(detected["raw_lines"]) >= 3:
+
+
+
+        score += 1
+
+
+
+    if score <= 1:
+
+
+
+        return "Préliminaire — données limitées"
+
+
+
+    if score <= 3:
+
+
+
+        return "Structurée — nécessite tests"
+
+
+
+    return "Moyenne — validation terrain/OEM requise"
+
+
+
+# =========================================================
+
+
+
+# MOTEUR GÉNÉRAL V0.4
+
+
+
+# =========================================================
+
+
+
+def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
+
+
+
+    text = f"{machine} {symptoms} {dtcs} {context} {history}"
+
+
+
+    primary_system = choose_primary_system(selected_system, text)
+
+
+
+    detected = detect_general_facts(machine, symptoms, dtcs, context, history)
+
+
+
+    severity, risk = determine_severity(primary_system, detected)
+
+
+
+    hypotheses = build_hypotheses(primary_system, detected)
+
+
+
+    tests = build_universal_tests(primary_system, detected)
+
+
+
+    prudence = build_prudence(primary_system, detected)
+
+
+
+    if primary_system == "Inconnu":
+
+
+
+        summary = "Les informations ne permettent pas encore d’identifier clairement le système principal."
+
+
+
+    else:
+
+
+
+        summary = (
+
+
+
+            f"Analyse générale centrée sur le système : {primary_system}. "
+
+
+
+            "Le moteur ne conclut pas à une pièce défectueuse; il structure les pistes et les tests à effectuer."
+
+
+
+        )
 
 
 
@@ -1814,19 +2023,31 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
+        "version": "v0.4",
+
+
+
+        "primary_system": primary_system,
+
+
+
         "summary": summary,
 
 
 
-        "systems": systems_output,
+        "dtcs": detected["dtcs"],
 
 
 
-        "conditions": conditions,
+        "facts": detected["facts"],
 
 
 
-        "facts": facts,
+        "conditions": detected["conditions"],
+
+
+
+        "tests_done": detected["tests_done"],
 
 
 
@@ -1834,7 +2055,7 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
-        "dtcs": dtc_list,
+        "risk_flags": detected["risk_flags"],
 
 
 
@@ -1858,7 +2079,7 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
-        "confidence_label": confidence_label
+        "confidence_label": confidence_label(detected),
 
 
 
@@ -1882,7 +2103,7 @@ st.title("🔧 MecaTech IA")
 
 
 
-st.caption("Prototype MVP v0.3.1 — priorité au système choisi, moteur prudent, validation humaine obligatoire")
+st.caption("Prototype MVP v0.4 — moteur général modulaire de diagnostic")
 
 
 
@@ -1894,7 +2115,7 @@ with col1:
 
 
 
-    st.metric("Version", "v0.3.1")
+    st.metric("Version", "v0.4")
 
 
 
@@ -1902,7 +2123,7 @@ with col2:
 
 
 
-    st.metric("Mode", "MVP terrain")
+    st.metric("Mode", "Moteur général")
 
 
 
@@ -1986,11 +2207,11 @@ if page == "Diagnostic":
 
 
 
-    Cette version priorise le système choisi par le mécanicien.
+    Version v0.4 : moteur général modulaire. Le système choisi par le mécanicien reste prioritaire.
 
 
 
-    Les mots-clés servent de contexte secondaire, pas de décision principale.
+    L’app structure le raisonnement au lieu de deviner une pièce.
 
 
 
@@ -2074,7 +2295,7 @@ if page == "Diagnostic":
 
 
 
-            placeholder="Ex: John Deere 772G 2007",
+            placeholder="Ex: John Deere 772G 2007, Hitachi ZW180 2020",
 
 
 
@@ -2150,6 +2371,10 @@ if page == "Diagnostic":
 
 
 
+                "PTO / accessoires",
+
+
+
                 "Autre / inconnu"
 
 
@@ -2174,7 +2399,7 @@ if page == "Diagnostic":
 
 
 
-            placeholder="Ex: TCU 522405.5 / TCU 523754.3",
+            placeholder="Ex: TCU 522405.5 / SPN 3719 FMI 16 / aucun code actif",
 
 
 
@@ -2198,7 +2423,7 @@ if page == "Diagnostic":
 
 
 
-        placeholder="Décris le problème : quand ça arrive, témoin, comportement, conditions...",
+        placeholder="Décris le problème : ce qui arrive, quand, conditions, bruit, témoin, comportement...",
 
 
 
@@ -2222,7 +2447,7 @@ if page == "Diagnostic":
 
 
 
-        placeholder="Ex: filtre OK, huile OK, courant au sélecteur OK, courant au solénoïde OK...",
+        placeholder="Ex: huile OK, filtre remplacé, courant au solénoïde OK, pression non testée, problème chaud/froid...",
 
 
 
@@ -2454,7 +2679,7 @@ if page == "Diagnostic":
 
 
 
-            st.metric("Sévérité", analysis["severity"])
+            st.metric("Système principal", analysis["primary_system"])
 
 
 
@@ -2462,7 +2687,7 @@ if page == "Diagnostic":
 
 
 
-            st.metric("Niveau de certitude", analysis["confidence_label"])
+            st.metric("Sévérité", analysis["severity"])
 
 
 
@@ -2470,7 +2695,7 @@ if page == "Diagnostic":
 
 
 
-            st.metric("DTC détectés", len(analysis["dtcs"]))
+            st.metric("Certitude", analysis["confidence_label"])
 
 
 
@@ -2518,11 +2743,11 @@ if page == "Diagnostic":
 
 
 
-            st.write("**Systèmes :**")
+            st.write("**Faits observés :**")
 
 
 
-            st.write(analysis["systems"] if analysis["systems"] else "Non détecté")
+            st.write(analysis["facts"] if analysis["facts"] else "Non détecté")
 
 
 
@@ -2542,11 +2767,19 @@ if page == "Diagnostic":
 
 
 
-            st.write("**Faits terrain :**")
+            st.write("**Tests déjà faits :**")
 
 
 
-            st.write(analysis["facts"] if analysis["facts"] else "Non détecté")
+            st.write(analysis["tests_done"] if analysis["tests_done"] else "Non détecté")
+
+
+
+        st.markdown("### Codes détectés")
+
+
+
+        st.write(analysis["dtcs"] if analysis["dtcs"] else "Aucun code structuré détecté")
 
 
 
@@ -2726,11 +2959,15 @@ elif page == "Historique":
 
 
 
-                f"Analyse #{analysis['run_id']} — {case['machine']} — {analysis['timestamp']}"
+                f"Analyse #{analysis['run_id']} — {analysis['primary_system']} — {analysis['timestamp']}"
 
 
 
             ):
+
+
+
+                st.write("**Machine :**", case["machine"])
 
 
 
@@ -2811,6 +3048,10 @@ elif page == "Validation humaine":
 
 
         st.write("**Machine :**", case["machine"])
+
+
+
+        st.write("**Système principal :**", analysis["primary_system"])
 
 
 
@@ -2918,7 +3159,7 @@ elif page == "À propos":
 
 
 
-    st.header("À propos de MecaTech IA v0.3.1")
+    st.header("À propos de MecaTech IA v0.4")
 
 
 
@@ -2926,59 +3167,7 @@ elif page == "À propos":
 
 
 
-    Cette version corrige une lacune importante :
-
-
-
-    Le système principal choisi par le mécanicien est maintenant prioritaire.
-
-
-
-    Exemple :
-
-
-
-    Si le mécanicien choisit Frein, l’analyse reste centrée sur le frein/parking brake,
-
-
-
-    même si le texte contient les mots “sélecteur de vitesse”, “huile” ou “courant”.
-
-
-
-    Ce qu’elle fait :
-
-
-
-    - relance une nouvelle analyse à chaque clic;
-
-
-
-    - garde un historique de session;
-
-
-
-    - priorise le système choisi;
-
-
-
-    - détecte les codes TCU;
-
-
-
-    - structure les symptômes;
-
-
-
-    - propose des hypothèses à vérifier;
-
-
-
-    - affiche les limites et informations manquantes;
-
-
-
-    - garde une validation humaine.
+    Cette version introduit un moteur général modulaire.
 
 
 
@@ -2986,7 +3175,75 @@ elif page == "À propos":
 
 
 
-    MecaTech IA doit aider à raisonner, pas inventer une certitude.
+    - le système choisi par le mécanicien est prioritaire;
+
+
+
+    - l’app extrait les faits, conditions, tests déjà faits et codes;
+
+
+
+    - elle propose des hypothèses générales adaptées au système;
+
+
+
+    - elle donne une séquence de tests;
+
+
+
+    - elle affiche les limites et informations manquantes;
+
+
+
+    - elle ne conclut pas à une pièce sans preuve.
+
+
+
+    Différence avec les versions précédentes :
+
+
+
+    - moins de logique codée pour un cas précis;
+
+
+
+    - plus de raisonnement général par système;
+
+
+
+    - meilleure base pour tester plusieurs problèmes mécaniques différents.
+
+
+
+    Limites actuelles :
+
+
+
+    - pas encore de vraie API IA;
+
+
+
+    - pas encore de base de données persistante;
+
+
+
+    - pas encore de recherche web;
+
+
+
+    - pas encore de documentation OEM;
+
+
+
+    - pas encore de données live J1939/J1708.
+
+
+
+    Objectif :
+
+
+
+    aider le mécanicien à structurer son diagnostic, sans remplacer son jugement.
 
 
 
@@ -2998,5 +3255,5 @@ st.divider()
 
 
 
-st.caption("MecaTech IA v0.3.1 — Read the fault. Find the cause. Fix it — once.")
+st.caption("MecaTech IA v0.4 — Moteur général modulaire | Read the fault. Find the cause. Fix it — once.")
 
