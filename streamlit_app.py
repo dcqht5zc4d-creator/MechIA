@@ -1,5 +1,5 @@
-import streamlit as st
 
+import streamlit as st 
 
 
 from datetime import datetime
@@ -107,34 +107,6 @@ st.markdown("""
 
 
         padding-bottom: 3rem;
-
-
-
-    }
-
-
-
-    .box {
-
-
-
-        background: #171b1f;
-
-
-
-        border: 1px solid #343a40;
-
-
-
-        padding: 16px;
-
-
-
-        border-radius: 12px;
-
-
-
-        margin-bottom: 12px;
 
 
 
@@ -350,6 +322,14 @@ def extract_dtcs(text: str) -> list[str]:
 
 
 
+        r"\bTCU\s*\d{4,6}\.\d{1,2}\b",
+
+
+
+        r"\bECU\s*\d{4,6}\.\d{1,2}\b",
+
+
+
         r"\bSPN\s*\d{3,6}\s*FMI\s*\d{1,2}\b",
 
 
@@ -426,7 +406,7 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    # Systèmes
+    # Systèmes détectés comme contexte secondaire
 
 
 
@@ -454,7 +434,7 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    if contains_any(text, ["électrique", "voltage", "batterie", "alternateur", "fusible", "relais", "capteur", "can", "canbus", "faisceau"]):
+    if contains_any(text, ["électrique", "voltage", "batterie", "alternateur", "fusible", "relais", "capteur", "can", "canbus", "faisceau", "courant"]):
 
 
 
@@ -462,7 +442,7 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    if contains_any(text, ["frein", "brake", "stationnement", "parking brake"]):
+    if contains_any(text, ["frein", "brake", "stationnement", "parking brake", "parking"]):
 
 
 
@@ -542,19 +522,19 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    if contains_any(text, ["lumière transmission", "voyant transmission", "lumière trans", "trans light"]):
+    if contains_any(text, ["lumière témoin", "lumiere temoin", "témoin", "temoin", "voyant", "ne s'allume pas", "ne s allume pas"]):
 
 
 
-        detected["facts"].append("Voyant transmission allume")
+        detected["facts"].append("Témoin / voyant ne confirme pas l’état")
 
 
 
-    if contains_any(text, ["filtre remplacé", "filtre changé", "filtre neuf"]):
+    if contains_any(text, ["filtre ok", "filtre remplacé", "filtre changé", "filtre neuf"]):
 
 
 
-        detected["facts"].append("Filtre remplacé")
+        detected["facts"].append("Filtre déclaré OK")
 
 
 
@@ -574,19 +554,35 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    if contains_any(text, ["avant et reculons", "marche avant", "reculons", "avant ou reculons"]):
+    if contains_any(text, ["courant ok", "courant sur", "voltage ok", "alimentation ok"]):
 
 
 
-        detected["facts"].append("Avant / reculons mentionnés")
+        detected["facts"].append("Courant / alimentation déclaré OK")
 
 
 
-    # Infos manquantes utiles
+    if contains_any(text, ["solénoïde", "solenoide"]):
 
 
 
-    if not extract_dtcs(dtcs + " " + symptoms):
+        detected["facts"].append("Solénoïde mentionné")
+
+
+
+    if contains_any(text, ["capteur de pression"]):
+
+
+
+        detected["facts"].append("Capteur de pression mentionné")
+
+
+
+    # Infos manquantes
+
+
+
+    if not extract_dtcs(dtcs + " " + symptoms + " " + context):
 
 
 
@@ -594,19 +590,11 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    if not contains_any(text, ["heures", "km", "h"]):
+    if not contains_any(text, ["pression", "voltage", "donnée live", "live data", "paramètre", "courant"]):
 
 
 
-        detected["missing"].append("Heures/km de la machine")
-
-
-
-    if not contains_any(text, ["pression", "voltage", "donnée live", "live data", "paramètre"]):
-
-
-
-        detected["missing"].append("Données live : voltage, pression, rapport demandé/engagé, vitesses capteurs")
+        detected["missing"].append("Données live : voltage, pression, états d’entrée/sortie module")
 
 
 
@@ -626,7 +614,7 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-# ENGINE V0.3 — PRUDENT
+# ENGINE V0.3.1 — PRIORITÉ AU SYSTÈME CHOISI
 
 
 
@@ -634,7 +622,7 @@ def detect_context(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-def analyze_case(machine, symptoms, dtcs, context, history):
+def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
@@ -642,11 +630,11 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-    dtc_list = extract_dtcs(dtcs + " " + symptoms)
+    dtc_list = extract_dtcs(dtcs + " " + symptoms + " " + context)
 
 
 
-    systems = detected["systems"]
+    systems_detected = detected["systems"]
 
 
 
@@ -655,6 +643,10 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
     conditions = detected["conditions"]
+
+
+
+    text = f"{machine} {symptoms} {dtcs} {context} {history}".lower()
 
 
 
@@ -682,6 +674,462 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
+    # Priorité absolue au choix du mécanicien
+
+
+
+    primary_system = selected_system
+
+
+
+    if selected_system == "Autre / inconnu":
+
+
+
+        primary_system = systems_detected[0] if systems_detected else "Inconnu"
+
+
+
+    # Détections spéciales
+
+
+
+    parking_brake_problem = contains_any(
+
+
+
+        text,
+
+
+
+        ["parking brake", "frein de stationnement", "stationnement", "parking"]
+
+
+
+    )
+
+
+
+    does_not_apply = contains_any(
+
+
+
+        text,
+
+
+
+        [
+
+
+
+            "ne s'applique pas",
+
+
+
+            "ne s applique pas",
+
+
+
+            "ne s'engage pas",
+
+
+
+            "ne s engage pas",
+
+
+
+            "pas appliquer",
+
+
+
+            "pas appliqué",
+
+
+
+            "pas engage",
+
+
+
+            "pas engagé"
+
+
+
+        ]
+
+
+
+    )
+
+
+
+    witness_light_problem = contains_any(
+
+
+
+        text,
+
+
+
+        ["lumière témoin", "lumiere temoin", "témoin", "temoin", "voyant", "ne s'allume pas", "ne s allume pas"]
+
+
+
+    )
+
+
+
+    current_verified = contains_any(
+
+
+
+        text,
+
+
+
+        [
+
+
+
+            "courant ok",
+
+
+
+            "courant sur",
+
+
+
+            "voltage ok",
+
+
+
+            "alimentation ok",
+
+
+
+            "courant solénoïde",
+
+
+
+            "courant solenoide",
+
+
+
+            "courant capteur",
+
+
+
+            "courant sélecteur",
+
+
+
+            "courant selecteur"
+
+
+
+        ]
+
+
+
+    )
+
+
+
+    tcu_codes = [code for code in dtc_list if code.upper().startswith("TCU")]
+
+
+
+    # -----------------------------------------------------
+
+
+
+    # FREIN / PARKING BRAKE
+
+
+
+    # -----------------------------------------------------
+
+
+
+    if primary_system == "Frein":
+
+
+
+        summary = "Le problème décrit concerne principalement le frein ou sa commande."
+
+
+
+        if parking_brake_problem:
+
+
+
+            summary = "Le problème décrit concerne le parking brake / frein de stationnement : il ne s’applique pas ou sa commande ne confirme pas l’état attendu."
+
+
+
+        hypotheses = [
+
+
+
+            {
+
+
+
+                "title": "Commande logique du parking brake / condition d’autorisation non satisfaite",
+
+
+
+                "support": [
+
+
+
+                    "Le système principal sélectionné est Frein.",
+
+
+
+                    "Le problème touche le parking brake." if parking_brake_problem else "Le type exact de frein doit être confirmé.",
+
+
+
+                    "Le témoin ne s’allume pas ou ne confirme pas l’état." if witness_light_problem else "L’état du témoin doit être confirmé.",
+
+
+
+                    "Des codes TCU sont présents." if tcu_codes else "Aucun code TCU structuré détecté."
+
+
+
+                ],
+
+
+
+                "limits": [
+
+
+
+                    "Un courant présent à un composant ne confirme pas que le module reçoit ou interprète correctement le signal.",
+
+
+
+                    "Il faut valider les entrées/sorties du TCU selon le schéma et le manuel John Deere.",
+
+
+
+                    "La description exacte des codes TCU doit être confirmée avec la documentation OEM."
+
+
+
+                ]
+
+
+
+            },
+
+
+
+            {
+
+
+
+                "title": "Capteur de pression ou signal de retour mal interprété",
+
+
+
+                "support": [
+
+
+
+                    "Le capteur de pression est mentionné." if "Capteur de pression mentionné" in facts else "Le capteur de pression doit être validé.",
+
+
+
+                    "Le module peut recevoir une valeur incohérente même si l’alimentation est présente.",
+
+
+
+                    "Un code TCU peut indiquer un problème d’entrée, signal ou plage de fonctionnement."
+
+
+
+                ],
+
+
+
+                "limits": [
+
+
+
+                    "Mesurer le signal de retour, pas seulement l’alimentation.",
+
+
+
+                    "Comparer la lecture réelle du capteur avec ce que le TCU affiche en données live.",
+
+
+
+                    "Vérifier alimentation, ground et signal sous charge."
+
+
+
+                ]
+
+
+
+            },
+
+
+
+            {
+
+
+
+                "title": "Solénoïde de parking brake alimenté mais non fonctionnel mécaniquement",
+
+
+
+                "support": [
+
+
+
+                    "Le solénoïde est mentionné." if "Solénoïde mentionné" in facts else "L’état du solénoïde doit être confirmé.",
+
+
+
+                    "Courant OK ne veut pas dire que le solénoïde bouge ou que la valve travaille.",
+
+
+
+                    "Le frein ne s’applique pas." if does_not_apply else "L’application réelle du frein doit être confirmée."
+
+
+
+                ],
+
+
+
+                "limits": [
+
+
+
+                    "Tester l’activation réelle du solénoïde.",
+
+
+
+                    "Écouter/sentir le clic, mesurer résistance, vérifier la commande sous charge.",
+
+
+
+                    "Vérifier si la valve est collée ou si le circuit hydraulique/pneumatique réagit."
+
+
+
+                ]
+
+
+
+            },
+
+
+
+            {
+
+
+
+                "title": "Circuit hydraulique ou pression de commande du frein de stationnement",
+
+
+
+                "support": [
+
+
+
+                    "Le frein ne s’applique pas malgré des vérifications électriques.",
+
+
+
+                    "Huile/filtre déclarés OK réduisent la piste entretien de base." if ("Huile / niveau déclaré OK" in facts or "Filtre déclaré OK" in facts) else "État huile/filtre à confirmer."
+
+
+
+                ],
+
+
+
+                "limits": [
+
+
+
+                    "Mesurer la pression réelle du circuit de parking brake.",
+
+
+
+                    "Vérifier valve, restriction, fuite interne ou blocage mécanique.",
+
+
+
+                    "Ne pas conclure électrique seulement si la commande est présente."
+
+
+
+                ]
+
+
+
+            }
+
+
+
+        ]
+
+
+
+        tests = [
+
+
+
+            "Confirmer la signification exacte des codes TCU dans le manuel John Deere pour 772G 2007.",
+
+
+
+            "Lire les données live TCU : commande parking brake demandée, état du sélecteur, état capteur pression, retour témoin.",
+
+
+
+            "Vérifier non seulement le courant, mais aussi le signal de retour du capteur de pression.",
+
+
+
+            "Tester le solénoïde parking brake sous charge : alimentation, ground, résistance, activation réelle.",
+
+
+
+            "Vérifier si le TCU autorise ou bloque l’application du parking brake selon les conditions machine.",
+
+
+
+            "Contrôler le circuit hydraulique/pneumatique de parking brake : pression, valve, restriction, fuite interne.",
+
+
+
+            "Comparer le schéma électrique : sélecteur, témoin, capteur pression, solénoïde, TCU.",
+
+
+
+            "Vérifier si les codes reviennent immédiatement après effacement/redémarrage."
+
+
+
+        ]
+
+
+
+        severity = "Critique"
+
+
+
+        risk = "Frein de stationnement non fonctionnel : ne pas remettre la machine en service tant que l’application réelle du frein n’est pas confirmée."
+
+
+
     # -----------------------------------------------------
 
 
@@ -694,7 +1142,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-    if "Transmission" in systems:
+    elif primary_system == "Transmission":
 
 
 
@@ -718,15 +1166,15 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-                    "Transmission tombe au neutre.",
+                    "Le système principal sélectionné est Transmission.",
 
 
 
-                    "Le reset ou le retour au neutre permet de repartir." if "Reset / arrêt / sélecteur permet de repartir" in facts else "Le comportement de reset n’est pas encore confirmé.",
+                    "Transmission ou commande de rapport mentionnée dans les symptômes.",
 
 
 
-                    "Absence de code rapportée." if "Aucun code rapporté" in facts else "Les codes exacts ne sont pas confirmés."
+                    "Reset ou retour au neutre mentionné." if "Reset / arrêt / sélecteur permet de repartir" in facts else "Comportement après reset à préciser."
 
 
 
@@ -742,7 +1190,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-                    "Il faut comparer rapport demandé, rapport engagé et alimentation du module."
+                    "Comparer rapport demandé, rapport engagé et alimentation du module."
 
 
 
@@ -766,15 +1214,11 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-                    "Panne qui revient/intermittente." if "Intermittent / revient" in conditions else "Intermittence à confirmer.",
+                    "Compatible avec une panne qui revient ou intermittente.",
 
 
 
-                    "Présent dans plusieurs vitesses." if "Présent dans toutes les vitesses" in conditions else "Impact selon les vitesses à préciser.",
-
-
-
-                    "Aucun code peut arriver avec une coupure momentanée non enregistrée." if "Aucun code rapporté" in facts else "Historique de codes à vérifier."
+                    "Peut ne pas toujours générer un code mémorisé."
 
 
 
@@ -786,7 +1230,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-                    "Doit être validé par chute de voltage, wiggle test et inspection des connecteurs.",
+                    "Valider par chute de voltage, wiggle test et inspection des connecteurs.",
 
 
 
@@ -814,11 +1258,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-                    "Une incohérence de vitesse entrée/sortie peut forcer un mode protection.",
-
-
-
-                    "Voyant transmission mentionné." if "Voyant transmission allume" in facts else "Voyant ou message au tableau à confirmer."
+                    "Une incohérence de vitesse entrée/sortie peut forcer un mode protection."
 
 
 
@@ -842,50 +1282,6 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-            },
-
-
-
-            {
-
-
-
-                "title": "Pression de commande ou solénoïde transmission",
-
-
-
-                "support": [
-
-
-
-                    "La transmission décroche au neutre.",
-
-
-
-                    "Filtre et huile OK réduisent la piste d’entretien de base." if ("Filtre remplacé" in facts and "Huile / niveau déclaré OK" in facts) else "État huile/filtre à confirmer."
-
-
-
-                ],
-
-
-
-                "limits": [
-
-
-
-                    "La pression doit être mesurée selon procédure OEM.",
-
-
-
-                    "Ne pas remplacer solénoïde ou module sans test de commande."
-
-
-
-                ]
-
-
-
             }
 
 
@@ -898,11 +1294,11 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-            "Lire les codes actifs, inactifs et historiques avec outil compatible machine/transmission.",
+            "Lire codes actifs, inactifs et historiques transmission.",
 
 
 
-            "Surveiller en données live : rapport demandé, rapport engagé, vitesse entrée, vitesse sortie, état du sélecteur.",
+            "Surveiller rapport demandé, rapport engagé, vitesse entrée et vitesse sortie.",
 
 
 
@@ -910,23 +1306,15 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-            "Faire wiggle test du faisceau, connecteurs, sélecteur et alimentation pendant surveillance live.",
+            "Faire wiggle test du faisceau, connecteurs et sélecteur.",
 
 
 
-            "Vérifier relais, fusibles, connecteurs exposés à eau/sel/vibration/chaleur.",
+            "Vérifier relais, fusibles et connecteurs exposés à eau/sel/vibration.",
 
 
 
-            "Confirmer si la lumière transmission allume exactement au moment où elle tombe au neutre.",
-
-
-
-            "Tester pression de commande transmission selon procédure OEM si disponible.",
-
-
-
-            "Documenter si le problème arrive en marche avant, reculons, toutes vitesses, charge, pente, chaud/froid."
+            "Tester pression de commande transmission selon procédure OEM si disponible."
 
 
 
@@ -938,7 +1326,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-        risk = "Transmission qui tombe au neutre en roulant : risque opérationnel important. Ne pas remettre en service normal sans validation."
+        risk = "Transmission qui tombe au neutre en roulant : risque opérationnel important."
 
 
 
@@ -954,7 +1342,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-    elif "Hydraulique" in systems:
+    elif primary_system == "Hydraulique":
 
 
 
@@ -974,31 +1362,11 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-                "support": ["Symptômes liés à pression/pompe/valve."],
+                "support": ["Système principal sélectionné : Hydraulique."],
 
 
 
-                "limits": ["Impossible de confirmer sans manomètre ou données live."]
-
-
-
-            },
-
-
-
-            {
-
-
-
-                "title": "Restriction filtre / huile / crépine",
-
-
-
-                "support": ["Piste de base à éliminer en premier."],
-
-
-
-                "limits": ["Si filtre et huile sont déjà confirmés OK, cette piste descend en priorité."]
+                "limits": ["Impossible de confirmer sans mesure de pression."]
 
 
 
@@ -1014,11 +1382,11 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-                "support": ["Peut causer perte de fonction ou réaction lente."],
+                "support": ["Possible si une fonction ne répond pas correctement."],
 
 
 
-                "limits": ["Doit être confirmé par test de pression et temps de cycle."]
+                "limits": ["À confirmer par test de pression et temps de cycle."]
 
 
 
@@ -1034,11 +1402,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-            "Vérifier niveau, qualité et température d’huile hydraulique.",
-
-
-
-            "Contrôler filtres, crépine et présence de limaille.",
+            "Contrôler niveau, qualité et température d’huile hydraulique.",
 
 
 
@@ -1046,11 +1410,11 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-            "Comparer temps de cycle avec les spécifications.",
+            "Comparer temps de cycle avec spécifications.",
 
 
 
-            "Isoler la fonction affectée et vérifier fuite interne possible."
+            "Vérifier valve, restriction, fuite interne ou blocage."
 
 
 
@@ -1078,7 +1442,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-    elif "Moteur" in systems:
+    elif primary_system == "Moteur":
 
 
 
@@ -1098,7 +1462,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-                "support": ["Piste fréquente en perte de puissance ou fonctionnement anormal."],
+                "support": ["Système principal sélectionné : Moteur."],
 
 
 
@@ -1126,26 +1490,6 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-            },
-
-
-
-            {
-
-
-
-                "title": "Faisceau / capteur / alimentation module",
-
-
-
-                "support": ["Possible surtout si intermittent."],
-
-
-
-                "limits": ["Doit être validé par inspection et mesures électriques."]
-
-
-
             }
 
 
@@ -1170,11 +1514,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-            "Inspecter filtre air, filtre carburant et connecteurs capteurs.",
-
-
-
-            "Valider alimentation et grounds du module moteur."
+            "Inspecter filtres et connecteurs capteurs."
 
 
 
@@ -1194,130 +1534,6 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-    # FREIN
-
-
-
-    # -----------------------------------------------------
-
-
-
-    elif "Frein" in systems:
-
-
-
-        summary = "Le problème décrit implique un système de freinage."
-
-
-
-        hypotheses = [
-
-
-
-            {
-
-
-
-                "title": "Commande électrique / solénoïde / switch de frein",
-
-
-
-                "support": ["Piste fréquente si frein de stationnement ou commande ne répond pas."],
-
-
-
-                "limits": ["À confirmer par mesure électrique et schéma."]
-
-
-
-            },
-
-
-
-            {
-
-
-
-                "title": "Pression air/hydraulique insuffisante",
-
-
-
-                "support": ["Selon type de système."],
-
-
-
-                "limits": ["Doit être mesuré avant conclusion."]
-
-
-
-            },
-
-
-
-            {
-
-
-
-                "title": "Mécanisme de frein collé ou usé",
-
-
-
-                "support": ["Possible si commande fonctionne mais réaction mécanique anormale."],
-
-
-
-                "limits": ["Inspection physique requise."]
-
-
-
-            }
-
-
-
-        ]
-
-
-
-        tests = [
-
-
-
-            "Immobiliser la machine si le frein est incertain.",
-
-
-
-            "Vérifier alimentation, solénoïde, switchs et capteurs.",
-
-
-
-            "Mesurer pression air/hydraulique selon système.",
-
-
-
-            "Inspecter mécaniquement le frein.",
-
-
-
-            "Valider la logique de sécurité dans le manuel OEM."
-
-
-
-        ]
-
-
-
-        severity = "Critique"
-
-
-
-        risk = "Système de freinage impliqué : ne pas utiliser si comportement anormal."
-
-
-
-    # -----------------------------------------------------
-
-
-
     # ÉLECTRIQUE
 
 
@@ -1326,7 +1542,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-    elif "Électrique / commande" in systems:
+    elif primary_system == "Électrique":
 
 
 
@@ -1346,7 +1562,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-                "support": ["Très probable dans les pannes intermittentes."],
+                "support": ["Système principal sélectionné : Électrique."],
 
 
 
@@ -1371,26 +1587,6 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
                 "limits": ["Inspection visuelle seule insuffisante : wiggle test recommandé."]
-
-
-
-            },
-
-
-
-            {
-
-
-
-                "title": "Communication CAN ou module qui décroche",
-
-
-
-                "support": ["Possible si perte de communication ou comportement logique anormal."],
-
-
-
-                "limits": ["Nécessite lecture réseau et codes communication."]
 
 
 
@@ -1526,6 +1722,22 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
+    if tcu_codes:
+
+
+
+        prudence.append("Codes TCU détectés : utiliser la description OEM exacte avant de conclure. Le code seul ne suffit pas.")
+
+
+
+    if current_verified:
+
+
+
+        prudence.append("Courant présent ne confirme pas le fonctionnement réel. Vérifier signal de retour, charge, ground et activation mécanique.")
+
+
+
     if "Aucun code rapporté" in facts:
 
 
@@ -1534,11 +1746,11 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-    if "Filtre remplacé" in facts and "Huile / niveau déclaré OK" in facts:
+    if "Filtre déclaré OK" in facts and "Huile / niveau déclaré OK" in facts:
 
 
 
-        prudence.append("Filtre remplacé + huile OK : éviter de rester bloqué sur l’entretien de base; passer aux tests de commande, pression, faisceau et données live.")
+        prudence.append("Filtre OK + huile OK : éviter de rester bloqué sur l’entretien de base; passer aux tests de commande, pression, faisceau et données live.")
 
 
 
@@ -1562,7 +1774,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-    if len(facts) >= 3 and len(conditions) >= 2 and len(systems) >= 1:
+    if len(facts) >= 3 and len(conditions) >= 1:
 
 
 
@@ -1570,11 +1782,27 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-    if dtc_list and len(facts) >= 3:
+    if dtc_list and len(facts) >= 2:
 
 
 
-        confidence_label = "Moyenne+ — avec codes, mais validation requise"
+        confidence_label = "Moyenne+ — codes présents, validation OEM requise"
+
+
+
+    systems_output = [primary_system]
+
+
+
+    for sys in systems_detected:
+
+
+
+        if sys not in systems_output:
+
+
+
+            systems_output.append(sys)
 
 
 
@@ -1590,7 +1818,7 @@ def analyze_case(machine, symptoms, dtcs, context, history):
 
 
 
-        "systems": systems,
+        "systems": systems_output,
 
 
 
@@ -1654,7 +1882,7 @@ st.title("🔧 MecaTech IA")
 
 
 
-st.caption("Prototype MVP v0.3 — moteur prudent, relance directe, validation humaine obligatoire")
+st.caption("Prototype MVP v0.3.1 — priorité au système choisi, moteur prudent, validation humaine obligatoire")
 
 
 
@@ -1666,7 +1894,7 @@ with col1:
 
 
 
-    st.metric("Version", "v0.3")
+    st.metric("Version", "v0.3.1")
 
 
 
@@ -1758,11 +1986,11 @@ if page == "Diagnostic":
 
 
 
-    Cette version ne prétend pas confirmer une panne. Elle structure le raisonnement mécanique,
+    Cette version priorise le système choisi par le mécanicien.
 
 
 
-    classe les pistes à vérifier et indique les informations manquantes.
+    Les mots-clés servent de contexte secondaire, pas de décision principale.
 
 
 
@@ -1846,7 +2074,7 @@ if page == "Diagnostic":
 
 
 
-            placeholder="Ex: Hitachi ZW180 2020 transmission ZF",
+            placeholder="Ex: John Deere 772G 2007",
 
 
 
@@ -1866,7 +2094,7 @@ if page == "Diagnostic":
 
 
 
-            placeholder="Ex: 14 822 h ou inconnu",
+            placeholder="Ex: 12 908 h ou inconnu",
 
 
 
@@ -1946,7 +2174,7 @@ if page == "Diagnostic":
 
 
 
-            placeholder="Ex: Aucun code actif ou inactif / SPN xxxx FMI xx",
+            placeholder="Ex: TCU 522405.5 / TCU 523754.3",
 
 
 
@@ -1970,7 +2198,7 @@ if page == "Diagnostic":
 
 
 
-        placeholder="Décris le problème : quand ça arrive, chaud/froid, vitesse, charge, bruit, comportement...",
+        placeholder="Décris le problème : quand ça arrive, témoin, comportement, conditions...",
 
 
 
@@ -1994,7 +2222,7 @@ if page == "Diagnostic":
 
 
 
-        placeholder="Ex: filtre remplacé, huile OK, problème froid comme chaud, repart après arrêt, etc.",
+        placeholder="Ex: filtre OK, huile OK, courant au sélecteur OK, courant au solénoïde OK...",
 
 
 
@@ -2114,7 +2342,11 @@ if page == "Diagnostic":
 
 
 
-            history=history
+            history=history,
+
+
+
+            selected_system=system
 
 
 
@@ -2183,10 +2415,6 @@ if page == "Diagnostic":
 
 
         st.success(f"Nouvelle analyse #{analysis['run_id']} générée à {analysis['timestamp']}")
-
-
-
-    # AFFICHAGE RÉSULTAT
 
 
 
@@ -2554,15 +2782,7 @@ elif page == "Validation humaine":
 
 
 
-    st.write(
-
-
-
-        "Le mécanicien garde la décision finale. Cette section sert à noter si l’analyse était utile ou non."
-
-
-
-    )
+    st.write("Le mécanicien garde la décision finale. Cette section sert à noter si l’analyse était utile ou non.")
 
 
 
@@ -2698,7 +2918,7 @@ elif page == "À propos":
 
 
 
-    st.header("À propos de MecaTech IA v0.3")
+    st.header("À propos de MecaTech IA v0.3.1")
 
 
 
@@ -2706,7 +2926,23 @@ elif page == "À propos":
 
 
 
-    Cette version est un MVP fonctionnel très simple.
+    Cette version corrige une lacune importante :
+
+
+
+    Le système principal choisi par le mécanicien est maintenant prioritaire.
+
+
+
+    Exemple :
+
+
+
+    Si le mécanicien choisit Frein, l’analyse reste centrée sur le frein/parking brake,
+
+
+
+    même si le texte contient les mots “sélecteur de vitesse”, “huile” ou “courant”.
 
 
 
@@ -2722,11 +2958,15 @@ elif page == "À propos":
 
 
 
+    - priorise le système choisi;
+
+
+
+    - détecte les codes TCU;
+
+
+
     - structure les symptômes;
-
-
-
-    - détecte les faits importants;
 
 
 
@@ -2734,43 +2974,11 @@ elif page == "À propos":
 
 
 
-    - donne une séquence de tests;
-
-
-
-    - affiche les informations manquantes;
+    - affiche les limites et informations manquantes;
 
 
 
     - garde une validation humaine.
-
-
-
-    Ce qu’elle ne fait pas encore :
-
-
-
-    - elle ne remplace pas le mécanicien;
-
-
-
-    - elle ne remplace pas les manuels OEM;
-
-
-
-    - elle ne lit pas encore les données live;
-
-
-
-    - elle ne se connecte pas encore aux outils JPRO/OEM;
-
-
-
-    - elle n’utilise pas encore une vraie API IA;
-
-
-
-    - elle ne sauvegarde pas encore dans une vraie base de données.
 
 
 
@@ -2790,5 +2998,5 @@ st.divider()
 
 
 
-st.caption("MecaTech IA v0.3 — Read the fault. Find the cause. Fix it — once.")
+st.caption("MecaTech IA v0.3.1 — Read the fault. Find the cause. Fix it — once.")
 
