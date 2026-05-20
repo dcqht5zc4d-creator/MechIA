@@ -19,18 +19,6 @@ import re
 
 
 
-# =========================================================
-
-
-
-# CONFIG
-
-
-
-# =========================================================
-
-
-
 st.set_page_config(
 
 
@@ -51,18 +39,6 @@ st.set_page_config(
 
 
 
-# =========================================================
-
-
-
-# STYLE
-
-
-
-# =========================================================
-
-
-
 st.markdown("""
 
 
@@ -71,159 +47,159 @@ st.markdown("""
 
 
 
-    .stApp {
+.stApp {
 
 
 
-        background-color: #101214;
+    background-color: #101214;
 
 
 
-        color: #f2f2f2;
+    color: #f2f2f2;
 
 
 
-    }
+}
 
 
 
-    h1, h2, h3 {
+h1, h2, h3 {
 
 
 
-        color: #f5f5f5;
+    color: #f5f5f5;
 
 
 
-    }
+}
 
 
 
-    .block-container {
+.block-container {
 
 
 
-        padding-top: 2rem;
+    padding-top: 2rem;
 
 
 
-        padding-bottom: 3rem;
+    padding-bottom: 3rem;
 
 
 
-    }
+}
 
 
 
-    .danger-box {
+.danger-box {
 
 
 
-        background: #2a1414;
+    background: #2a1414;
 
 
 
-        border-left: 5px solid #e55353;
+    border-left: 5px solid #e55353;
 
 
 
-        padding: 14px;
+    padding: 14px;
 
 
 
-        border-radius: 8px;
+    border-radius: 8px;
 
 
 
-        margin-bottom: 12px;
+    margin-bottom: 12px;
 
 
 
-    }
+}
 
 
 
-    .warning-box {
+.warning-box {
 
 
 
-        background: #2b1d14;
+    background: #2b1d14;
 
 
 
-        border-left: 5px solid #c77b30;
+    border-left: 5px solid #c77b30;
 
 
 
-        padding: 14px;
+    padding: 14px;
 
 
 
-        border-radius: 8px;
+    border-radius: 8px;
 
 
 
-        margin-bottom: 12px;
+    margin-bottom: 12px;
 
 
 
-    }
+}
 
 
 
-    .ok-box {
+.ok-box {
 
 
 
-        background: #14251a;
+    background: #14251a;
 
 
 
-        border-left: 5px solid #52b788;
+    border-left: 5px solid #52b788;
 
 
 
-        padding: 14px;
+    padding: 14px;
 
 
 
-        border-radius: 8px;
+    border-radius: 8px;
 
 
 
-        margin-bottom: 12px;
+    margin-bottom: 12px;
 
 
 
-    }
+}
 
 
 
-    .info-box {
+.info-box {
 
 
 
-        background: #151a20;
+    background: #151a20;
 
 
 
-        border-left: 5px solid #4dabf7;
+    border-left: 5px solid #4dabf7;
 
 
 
-        padding: 14px;
+    padding: 14px;
 
 
 
-        border-radius: 8px;
+    border-radius: 8px;
 
 
 
-        margin-bottom: 12px;
+    margin-bottom: 12px;
 
 
 
-    }
+}
 
 
 
@@ -232,18 +208,6 @@ st.markdown("""
 
 
 """, unsafe_allow_html=True)
-
-
-
-# =========================================================
-
-
-
-# SESSION STATE
-
-
-
-# =========================================================
 
 
 
@@ -268,18 +232,6 @@ if "analysis_counter" not in st.session_state:
 
 
     st.session_state.analysis_counter = 0
-
-
-
-# =========================================================
-
-
-
-# OUTILS
-
-
-
-# =========================================================
 
 
 
@@ -391,18 +343,6 @@ def split_lines(text: str) -> list[str]:
 
 
 
-# =========================================================
-
-
-
-# MODULES GÉNÉRAUX
-
-
-
-# =========================================================
-
-
-
 SYSTEM_MODULES = {
 
 
@@ -435,7 +375,7 @@ SYSTEM_MODULES = {
 
 
 
-            "Défaut mécanique interne à confirmer seulement après tests externes"
+            "Défaut mécanique interne à confirmer seulement après tests externes",
 
 
 
@@ -471,11 +411,11 @@ SYSTEM_MODULES = {
 
 
 
-            "Confirmer si le problème est présent en marche avant, reculons, toutes vitesses, chaud/froid."
+            "Confirmer si le problème est présent en marche avant, reculons, toutes vitesses, chaud/froid.",
 
 
 
-        ]
+        ],
 
 
 
@@ -511,7 +451,7 @@ SYSTEM_MODULES = {
 
 
 
-            "Pompe faible, cavitation ou alimentation d’huile insuffisante"
+            "Pompe faible, cavitation ou alimentation d’huile insuffisante",
 
 
 
@@ -547,11 +487,11 @@ SYSTEM_MODULES = {
 
 
 
-            "Vérifier si le problème change avec température, charge ou régime moteur."
+            "Vérifier si le problème change avec température, charge ou régime moteur.",
 
 
 
-        ]
+        ],
 
 
 
@@ -587,7 +527,7 @@ SYSTEM_MODULES = {
 
 
 
-            "Problème mécanique moteur à confirmer par tests de base"
+            "Problème mécanique moteur à confirmer par tests de base",
 
 
 
@@ -623,11 +563,11 @@ SYSTEM_MODULES = {
 
 
 
-            "Confirmer si le problème apparaît sous charge, au ralenti, à chaud ou au démarrage."
+            "Confirmer si le problème apparaît sous charge, au ralenti, à chaud ou au démarrage.",
 
 
 
-        ]
+        ],
 
 
 
@@ -663,7 +603,7 @@ SYSTEM_MODULES = {
 
 
 
-            "Communication CAN/J1939/J1708 ou module qui décroche"
+            "Communication CAN/J1939/J1708 ou module qui décroche",
 
 
 
@@ -699,11 +639,11 @@ SYSTEM_MODULES = {
 
 
 
-            "Comparer le schéma électrique avec les points réellement mesurés."
+            "Comparer le schéma électrique avec les points réellement mesurés.",
 
 
 
-        ]
+        ],
 
 
 
@@ -739,7 +679,7 @@ SYSTEM_MODULES = {
 
 
 
-            "Mécanisme de frein collé, usé, mal ajusté ou endommagé"
+            "Mécanisme de frein collé, usé, mal ajusté ou endommagé",
 
 
 
@@ -775,11 +715,11 @@ SYSTEM_MODULES = {
 
 
 
-            "Inspecter mécaniquement frein, linkage, ajustement, usure et blocage."
+            "Inspecter mécaniquement frein, linkage, ajustement, usure et blocage.",
 
 
 
-        ]
+        ],
 
 
 
@@ -815,7 +755,7 @@ SYSTEM_MODULES = {
 
 
 
-            "Charge moteur excessive ou problème secondaire causant chaleur"
+            "Charge moteur excessive ou problème secondaire causant chaleur",
 
 
 
@@ -847,11 +787,11 @@ SYSTEM_MODULES = {
 
 
 
-            "Vérifier si la surchauffe apparaît au ralenti, sous charge ou en déplacement."
+            "Vérifier si la surchauffe apparaît au ralenti, sous charge ou en déplacement.",
 
 
 
-        ]
+        ],
 
 
 
@@ -887,7 +827,7 @@ SYSTEM_MODULES = {
 
 
 
-            "Articulation, pivot, bushing ou composant mécanique usé"
+            "Articulation, pivot, bushing ou composant mécanique usé",
 
 
 
@@ -919,11 +859,11 @@ SYSTEM_MODULES = {
 
 
 
-            "Lire codes et données live si direction assistée électroniquement."
+            "Lire codes et données live si direction assistée électroniquement.",
 
 
 
-        ]
+        ],
 
 
 
@@ -959,7 +899,7 @@ SYSTEM_MODULES = {
 
 
 
-            "Capteur de position/vitesse PTO incohérent"
+            "Capteur de position/vitesse PTO incohérent",
 
 
 
@@ -991,31 +931,19 @@ SYSTEM_MODULES = {
 
 
 
-            "Inspecter mécaniquement arbre, clutch, linkage et sécurité."
+            "Inspecter mécaniquement arbre, clutch, linkage et sécurité.",
 
 
 
-        ]
+        ],
 
 
 
-    }
+    },
 
 
 
 }
-
-
-
-# =========================================================
-
-
-
-# DÉTECTION GÉNÉRALE
-
-
-
-# =========================================================
 
 
 
@@ -1048,10 +976,6 @@ def detect_general_facts(machine, symptoms, dtcs, context, history) -> dict:
 
 
     risk_flags = []
-
-
-
-    # Conditions
 
 
 
@@ -1116,10 +1040,6 @@ def detect_general_facts(machine, symptoms, dtcs, context, history) -> dict:
 
 
         conditions.append("Toutes vitesses / tous rapports")
-
-
-
-    # Symptômes / faits
 
 
 
@@ -1219,7 +1139,7 @@ def detect_general_facts(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    if contains_any(text, ["reset", "redémarre", "redemarre", "arrête repart", "arrete repart"]):
+    if contains_any(text, ["reset", "redémarre", "redemarre", "arrête repart", "arrete repart", "redémarrage"]):
 
 
 
@@ -1227,7 +1147,19 @@ def detect_general_facts(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    # Tests déjà faits
+    if contains_any(text, ["pression sort", "pression est sortie", "pression sortie"]):
+
+
+
+        facts.append("Pression/réaction observée après manipulation")
+
+
+
+    if contains_any(text, ["frein s'applique", "frein s applique", "parking brake s'applique", "parking brake s applique"]):
+
+
+
+        facts.append("Frein s’applique après manipulation")
 
 
 
@@ -1287,10 +1219,6 @@ def detect_general_facts(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    # Risques
-
-
-
     if contains_any(text, ["frein", "brake", "stationnement", "parking brake"]):
 
 
@@ -1307,31 +1235,11 @@ def detect_general_facts(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    # Manquants
-
-
-
     if not dtc_list and "Aucun code rapporté" not in facts:
 
 
 
         missing.append("Codes actifs/inactifs ou mention claire qu’il n’y en a pas")
-
-
-
-    if not contains_any(text, ["année", "202", "201", "200", "modèle", "modele"]):
-
-
-
-        missing.append("Année/modèle exact si non indiqué")
-
-
-
-    if not contains_any(text, ["heures", "hrs", "km", "h "]):
-
-
-
-        missing.append("Heures/km de la machine")
 
 
 
@@ -1379,11 +1287,631 @@ def detect_general_facts(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-        "raw_lines": split_lines(symptoms + "\n" + context + "\n" + history)
+        "raw_lines": split_lines(symptoms + "\n" + context + "\n" + history),
 
 
 
     }
+
+
+
+def detect_field_deductions(machine, symptoms, dtcs, context, history) -> list[dict]:
+
+
+
+    text = f"{machine} {symptoms} {dtcs} {context} {history}".lower()
+
+
+
+    deductions = []
+
+
+
+    sensor_action = contains_any(text, [
+
+
+
+        "débranch", "debranch", "démanch", "demanch", "déconnect", "deconnect",
+
+
+
+        "manipul", "bougé le capteur", "bouger le capteur", "capteur"
+
+
+
+    ])
+
+
+
+    positive_reaction = contains_any(text, [
+
+
+
+        "fonctionne", "se remet", "revient", "s'applique", "s applique",
+
+
+
+        "s'engage", "s engage", "pression sort", "pression est sortie",
+
+
+
+        "témoin allume", "temoin allume", "lumière allume", "lumiere allume"
+
+
+
+    ])
+
+
+
+    if sensor_action and positive_reaction:
+
+
+
+        deductions.append({
+
+
+
+            "title": "Une action sur un capteur modifie le comportement du système",
+
+
+
+            "deduction": (
+
+
+
+                "Le fait qu’une action sur un capteur change le comportement indique que le circuit en aval "
+
+
+
+                "peut probablement fonctionner. Il faut prioriser le capteur, son signal de retour, son connecteur, "
+
+
+
+                "son faisceau ou l’interprétation du signal par le module."
+
+
+
+            ),
+
+
+
+            "priority_shift": [
+
+
+
+                "Augmenter priorité : capteur / signal retour / connecteur / faisceau / module",
+
+
+
+                "Réduire priorité : panne purement mécanique en aval, tant que la réaction positive est reproductible",
+
+
+
+            ],
+
+
+
+            "next_tests": [
+
+
+
+                "Comparer alimentation, ground et signal de retour du capteur.",
+
+
+
+                "Lire la valeur du capteur en données live pendant la commande.",
+
+
+
+                "Bouger le connecteur/faisceau du capteur pendant surveillance live.",
+
+
+
+                "Confirmer si la réaction est reproductible à chaque manipulation du capteur.",
+
+
+
+            ],
+
+
+
+        })
+
+
+
+    harness_action = contains_any(text, [
+
+
+
+        "bouge le faisceau", "bougé le faisceau", "wiggle", "brasse le fil",
+
+
+
+        "bouge le fil", "connecteur", "faisceau", "fil cassé", "fil coupe", "fil coupé"
+
+
+
+    ])
+
+
+
+    symptom_changes = contains_any(text, [
+
+
+
+        "apparaît", "apparait", "disparaît", "disparait", "revient",
+
+
+
+        "arrête", "arrete", "repart", "fonctionne", "coupe"
+
+
+
+    ])
+
+
+
+    if harness_action and symptom_changes:
+
+
+
+        deductions.append({
+
+
+
+            "title": "Une action sur le faisceau/connecteur modifie la panne",
+
+
+
+            "deduction": (
+
+
+
+                "Si bouger un faisceau ou un connecteur fait apparaître ou disparaître la panne, "
+
+
+
+                "la priorité devient connecteur, fil cassé, masse, alimentation ou mauvaise continuité."
+
+
+
+            ),
+
+
+
+            "priority_shift": [
+
+
+
+                "Augmenter priorité : faisceau / connecteur / masse / alimentation / continuité",
+
+
+
+                "Réduire priorité : remplacement de module ou pièce mécanique sans preuve",
+
+
+
+            ],
+
+
+
+            "next_tests": [
+
+
+
+                "Faire un wiggle test contrôlé pendant lecture des données live.",
+
+
+
+                "Mesurer chute de voltage sous charge.",
+
+
+
+                "Inspecter pins, corrosion, tension des terminaux et frottement du faisceau.",
+
+
+
+                "Tester continuité et résistance du fil pendant mouvement.",
+
+
+
+            ],
+
+
+
+        })
+
+
+
+    direct_power = contains_any(text, [
+
+
+
+        "courant direct", "alimenté direct", "alimente direct", "power direct",
+
+
+
+        "12v direct", "24v direct", "jumper", "shunt"
+
+
+
+    ])
+
+
+
+    function_works = contains_any(text, [
+
+
+
+        "fonctionne", "marche", "s'applique", "s applique", "s'engage", "s engage",
+
+
+
+        "active", "bouge", "clic", "clique"
+
+
+
+    ])
+
+
+
+    function_not_works = contains_any(text, [
+
+
+
+        "ne fonctionne pas", "fonctionne pas", "ne marche pas", "rien ne bouge",
+
+
+
+        "pas de clic", "pas de réaction", "pas de reaction"
+
+
+
+    ])
+
+
+
+    if direct_power and function_works:
+
+
+
+        deductions.append({
+
+
+
+            "title": "La fonction marche avec alimentation directe",
+
+
+
+            "deduction": (
+
+
+
+                "Si la fonction marche avec une alimentation directe, l’actionneur ou le circuit en aval "
+
+
+
+                "est probablement capable de fonctionner. La priorité devient la commande, le relais, le module, "
+
+
+
+                "l’autorisation logique, le faisceau ou l’alimentation normale."
+
+
+
+            ),
+
+
+
+            "priority_shift": [
+
+
+
+                "Augmenter priorité : commande / relais / module / autorisation / faisceau amont",
+
+
+
+                "Réduire priorité : actionneur complètement mort ou mécanique bloquée",
+
+
+
+            ],
+
+
+
+            "next_tests": [
+
+
+
+                "Comparer alimentation directe vs alimentation commandée par le système.",
+
+
+
+                "Vérifier relais, sortie module, conditions d’autorisation et sécurité.",
+
+
+
+                "Mesurer voltage sous charge au connecteur pendant commande normale.",
+
+
+
+                "Vérifier si le module demande réellement l’activation.",
+
+
+
+            ],
+
+
+
+        })
+
+
+
+    if direct_power and function_not_works:
+
+
+
+        deductions.append({
+
+
+
+            "title": "La fonction ne marche pas même avec alimentation directe",
+
+
+
+            "deduction": (
+
+
+
+                "Si l’alimentation directe ne produit aucune réaction, la priorité devient l’actionneur, "
+
+
+
+                "la valve, le circuit hydraulique/pneumatique ou le mécanisme en aval."
+
+
+
+            ),
+
+
+
+            "priority_shift": [
+
+
+
+                "Augmenter priorité : actionneur / solénoïde / valve / pression / mécanique",
+
+
+
+                "Réduire priorité : commande amont seulement",
+
+
+
+            ],
+
+
+
+            "next_tests": [
+
+
+
+                "Mesurer résistance de l’actionneur ou solénoïde.",
+
+
+
+                "Confirmer ground et courant sous charge.",
+
+
+
+                "Vérifier activation mécanique réelle.",
+
+
+
+                "Mesurer pression ou mouvement en aval.",
+
+
+
+            ],
+
+
+
+        })
+
+
+
+    maintenance_done = contains_any(text, [
+
+
+
+        "filtre remplacé", "filtre ok", "huile ok", "pièce remplacée", "piece remplacee",
+
+
+
+        "capteur remplacé", "solénoïde remplacé", "nettoyé", "nettoye"
+
+
+
+    ])
+
+
+
+    no_change = contains_any(text, [
+
+
+
+        "aucun changement", "pas changé", "pas changer", "même problème",
+
+
+
+        "symptômes reviennent", "symptomes reviennent", "revient pareil"
+
+
+
+    ])
+
+
+
+    if maintenance_done and no_change:
+
+
+
+        deductions.append({
+
+
+
+            "title": "Une intervention ou pièce remplacée n’a pas changé le symptôme",
+
+
+
+            "deduction": (
+
+
+
+                "Si une intervention n’a produit aucun changement, cette piste descend en priorité. "
+
+
+
+                "Il faut remonter vers la commande, la mesure objective, le signal ou une condition non vérifiée."
+
+
+
+            ),
+
+
+
+            "priority_shift": [
+
+
+
+                "Réduire priorité : pièce ou entretien déjà testé sans effet",
+
+
+
+                "Augmenter priorité : mesure objective / commande / signal / condition manquante",
+
+
+
+            ],
+
+
+
+            "next_tests": [
+
+
+
+                "Lister précisément les pièces ou interventions déjà faites.",
+
+
+
+                "Comparer avant/après avec mesure objective.",
+
+
+
+                "Vérifier la commande et le signal plutôt que répéter le remplacement.",
+
+
+
+                "Identifier la condition qui n’a pas encore été testée.",
+
+
+
+            ],
+
+
+
+        })
+
+
+
+    reset_changes = contains_any(text, [
+
+
+
+        "redémarre", "redemarre", "reset", "arrête repart", "arrete repart",
+
+
+
+        "après redémarrage", "apres redemarrage", "repart la machine"
+
+
+
+    ])
+
+
+
+    if reset_changes:
+
+
+
+        deductions.append({
+
+
+
+            "title": "Le redémarrage/reset change temporairement le comportement",
+
+
+
+            "deduction": (
+
+
+
+                "Si un redémarrage ou reset change le comportement, la priorité augmente pour la logique module, "
+
+
+
+                "l’état mémorisé, l’autorisation de commande, un capteur incohérent ou une protection temporaire."
+
+
+
+            ),
+
+
+
+            "priority_shift": [
+
+
+
+                "Augmenter priorité : module / état logique / capteur / autorisation / protection",
+
+
+
+                "Ne pas conclure immédiatement à une panne mécanique pure",
+
+
+
+            ],
+
+
+
+            "next_tests": [
+
+
+
+                "Lire les codes avant et après redémarrage.",
+
+
+
+                "Comparer les états live avant/après reset.",
+
+
+
+                "Identifier quelle condition revient au défaut après redémarrage.",
+
+
+
+                "Vérifier si une protection ou interlock bloque la fonction.",
+
+
+
+            ],
+
+
+
+        })
+
+
+
+    return deductions
 
 
 
@@ -1435,7 +1963,7 @@ def choose_primary_system(selected_system: str, text: str) -> str:
 
 
 
-        "PTO / accessoires": ["pto", "prise de force", "accessoire", "souffleuse", "blower"]
+        "PTO / accessoires": ["pto", "prise de force", "accessoire", "souffleuse", "blower"],
 
 
 
@@ -1459,7 +1987,7 @@ def choose_primary_system(selected_system: str, text: str) -> str:
 
 
 
-def build_hypotheses(primary_system: str, detected: dict) -> list[dict]:
+def build_hypotheses(primary_system: str, detected: dict, field_deductions: list[dict]) -> list[dict]:
 
 
 
@@ -1467,55 +1995,107 @@ def build_hypotheses(primary_system: str, detected: dict) -> list[dict]:
 
 
 
+    hypotheses = []
+
+
+
+    for deduction in field_deductions:
+
+
+
+        hypotheses.append({
+
+
+
+            "title": "Déduction terrain : " + deduction["title"],
+
+
+
+            "support": [
+
+
+
+                deduction["deduction"],
+
+
+
+                "Changement de priorité : " + " | ".join(deduction["priority_shift"]),
+
+
+
+            ],
+
+
+
+            "limits": [
+
+
+
+                "Déduction prudente basée sur le comportement observé.",
+
+
+
+                "À confirmer par mesure objective, données live, schéma ou procédure OEM.",
+
+
+
+                "Ne pas conclure à une pièce sans test de confirmation.",
+
+
+
+            ],
+
+
+
+        })
+
+
+
     if not module:
 
 
 
-        return [
+        hypotheses.append({
 
 
 
-            {
+            "title": "Information insuffisante pour orienter le diagnostic",
 
 
 
-                "title": "Information insuffisante pour orienter le diagnostic",
+            "support": [
 
 
 
-                "support": [
+                "Aucun système clair n’a été sélectionné ou détecté.",
 
 
 
-                    "Aucun système clair n’a été sélectionné ou détecté.",
+                "Les symptômes doivent être reliés à un système mécanique précis.",
 
 
 
-                    "Les symptômes doivent être reliés à un système mécanique précis."
+            ],
 
 
 
-                ],
+            "limits": [
 
 
 
-                "limits": [
+                "Ajouter système principal, codes, conditions, tests déjà faits et comportement exact.",
 
 
 
-                    "Ajouter système principal, codes, conditions, tests déjà faits et comportement exact."
+            ],
 
 
 
-                ]
+        })
 
 
 
-            }
-
-
-
-        ]
+        return hypotheses
 
 
 
@@ -1528,10 +2108,6 @@ def build_hypotheses(primary_system: str, detected: dict) -> list[dict]:
 
 
     conditions = detected["conditions"]
-
-
-
-    hypotheses = []
 
 
 
@@ -1555,7 +2131,7 @@ def build_hypotheses(primary_system: str, detected: dict) -> list[dict]:
 
 
 
-            "Tests déjà faits : " + ", ".join(tests_done) if tests_done else "Tests déjà faits non précisés."
+            "Tests déjà faits : " + ", ".join(tests_done) if tests_done else "Tests déjà faits non précisés.",
 
 
 
@@ -1575,7 +2151,7 @@ def build_hypotheses(primary_system: str, detected: dict) -> list[dict]:
 
 
 
-            "Ne pas remplacer de pièce sans test de confirmation."
+            "Ne pas remplacer de pièce sans test de confirmation.",
 
 
 
@@ -1595,7 +2171,7 @@ def build_hypotheses(primary_system: str, detected: dict) -> list[dict]:
 
 
 
-            "limits": limits
+            "limits": limits,
 
 
 
@@ -1607,7 +2183,19 @@ def build_hypotheses(primary_system: str, detected: dict) -> list[dict]:
 
 
 
-def build_universal_tests(primary_system: str, detected: dict) -> list[str]:
+def build_universal_tests(primary_system: str, detected: dict, field_deductions: list[dict]) -> list[str]:
+
+
+
+    deduction_tests = []
+
+
+
+    for deduction in field_deductions:
+
+
+
+        deduction_tests.extend(deduction["next_tests"])
 
 
 
@@ -1635,7 +2223,7 @@ def build_universal_tests(primary_system: str, detected: dict) -> list[str]:
 
 
 
-        "Comparer commande demandée vs réaction réelle avec données live si disponibles."
+        "Comparer commande demandée vs réaction réelle avec données live si disponibles.",
 
 
 
@@ -1671,7 +2259,7 @@ def build_universal_tests(primary_system: str, detected: dict) -> list[str]:
 
 
 
-            "Comparer avec schéma/manuel OEM."
+            "Comparer avec schéma/manuel OEM.",
 
 
 
@@ -1679,7 +2267,7 @@ def build_universal_tests(primary_system: str, detected: dict) -> list[str]:
 
 
 
-    return list(dict.fromkeys(base_tests + specific_tests))
+    return list(dict.fromkeys(deduction_tests + base_tests + specific_tests))
 
 
 
@@ -1707,7 +2295,7 @@ def determine_severity(primary_system: str, detected: dict) -> tuple[str, str]:
 
 
 
-            "Frein ou immobilisation impliqué : ne pas remettre en service tant que le fonctionnement réel n’est pas confirmé."
+            "Frein ou immobilisation impliqué : ne pas remettre en service tant que le fonctionnement réel n’est pas confirmé.",
 
 
 
@@ -1727,7 +2315,7 @@ def determine_severity(primary_system: str, detected: dict) -> tuple[str, str]:
 
 
 
-            "Risque opérationnel : diagnostic et validation requis avant utilisation normale."
+            "Risque opérationnel : diagnostic et validation requis avant utilisation normale.",
 
 
 
@@ -1747,7 +2335,7 @@ def determine_severity(primary_system: str, detected: dict) -> tuple[str, str]:
 
 
 
-            SYSTEM_MODULES.get(primary_system, {}).get("risk", "Risque élevé à valider.")
+            SYSTEM_MODULES.get(primary_system, {}).get("risk", "Risque élevé à valider."),
 
 
 
@@ -1767,7 +2355,7 @@ def determine_severity(primary_system: str, detected: dict) -> tuple[str, str]:
 
 
 
-            "Surchauffe ou température élevée : risque de dommage si ignoré."
+            "Surchauffe ou température élevée : risque de dommage si ignoré.",
 
 
 
@@ -1787,7 +2375,7 @@ def determine_severity(primary_system: str, detected: dict) -> tuple[str, str]:
 
 
 
-            SYSTEM_MODULES[primary_system]["risk"]
+            SYSTEM_MODULES[primary_system]["risk"],
 
 
 
@@ -1803,7 +2391,7 @@ def determine_severity(primary_system: str, detected: dict) -> tuple[str, str]:
 
 
 
-        "Données insuffisantes. Analyse préliminaire seulement."
+        "Données insuffisantes. Analyse préliminaire seulement.",
 
 
 
@@ -1811,11 +2399,19 @@ def determine_severity(primary_system: str, detected: dict) -> tuple[str, str]:
 
 
 
-def build_prudence(primary_system: str, detected: dict) -> list[str]:
+def build_prudence(primary_system: str, detected: dict, field_deductions: list[dict]) -> list[str]:
 
 
 
     prudence = []
+
+
+
+    for deduction in field_deductions:
+
+
+
+        prudence.append("Déduction terrain détectée : " + deduction["title"])
 
 
 
@@ -1875,7 +2471,7 @@ def build_prudence(primary_system: str, detected: dict) -> list[str]:
 
 
 
-def confidence_label(detected: dict) -> str:
+def confidence_label(detected: dict, field_deductions: list[dict]) -> str:
 
 
 
@@ -1915,6 +2511,14 @@ def confidence_label(detected: dict) -> str:
 
 
 
+    if field_deductions:
+
+
+
+        score += 2
+
+
+
     if len(detected["raw_lines"]) >= 3:
 
 
@@ -1939,19 +2543,15 @@ def confidence_label(detected: dict) -> str:
 
 
 
-    return "Moyenne — validation terrain/OEM requise"
+    if score <= 5:
 
 
 
-# =========================================================
+        return "Moyenne — validation terrain/OEM requise"
 
 
 
-# MOTEUR GÉNÉRAL V0.4
-
-
-
-# =========================================================
+    return "Forte orientation — confirmation terrain/OEM requise"
 
 
 
@@ -1971,19 +2571,23 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
+    field_deductions = detect_field_deductions(machine, symptoms, dtcs, context, history)
+
+
+
     severity, risk = determine_severity(primary_system, detected)
 
 
 
-    hypotheses = build_hypotheses(primary_system, detected)
+    hypotheses = build_hypotheses(primary_system, detected, field_deductions)
 
 
 
-    tests = build_universal_tests(primary_system, detected)
+    tests = build_universal_tests(primary_system, detected, field_deductions)
 
 
 
-    prudence = build_prudence(primary_system, detected)
+    prudence = build_prudence(primary_system, detected, field_deductions)
 
 
 
@@ -2023,7 +2627,7 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
-        "version": "v0.4",
+        "version": "v0.4.1",
 
 
 
@@ -2059,6 +2663,10 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
+        "field_deductions": field_deductions,
+
+
+
         "severity": severity,
 
 
@@ -2079,7 +2687,7 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
-        "confidence_label": confidence_label(detected),
+        "confidence_label": confidence_label(detected, field_deductions),
 
 
 
@@ -2087,23 +2695,11 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
-# =========================================================
-
-
-
-# HEADER
-
-
-
-# =========================================================
-
-
-
 st.title("🔧 MecaTech IA")
 
 
 
-st.caption("Prototype MVP v0.4 — moteur général modulaire de diagnostic")
+st.caption("Prototype MVP v0.4.1 — moteur général modulaire + déduction terrain")
 
 
 
@@ -2115,7 +2711,7 @@ with col1:
 
 
 
-    st.metric("Version", "v0.4")
+    st.metric("Version", "v0.4.1")
 
 
 
@@ -2123,7 +2719,7 @@ with col2:
 
 
 
-    st.metric("Mode", "Moteur général")
+    st.metric("Mode", "Général + terrain")
 
 
 
@@ -2147,18 +2743,6 @@ st.divider()
 
 
 
-# =========================================================
-
-
-
-# SIDEBAR
-
-
-
-# =========================================================
-
-
-
 st.sidebar.title("Navigation")
 
 
@@ -2179,18 +2763,6 @@ page = st.sidebar.radio(
 
 
 
-# =========================================================
-
-
-
-# PAGE DIAGNOSTIC
-
-
-
-# =========================================================
-
-
-
 if page == "Diagnostic":
 
 
@@ -2207,11 +2779,11 @@ if page == "Diagnostic":
 
 
 
-    Version v0.4 : moteur général modulaire. Le système choisi par le mécanicien reste prioritaire.
+    Version v0.4.1 : moteur général modulaire avec déduction terrain.
 
 
 
-    L’app structure le raisonnement au lieu de deviner une pièce.
+    L’app tente de comprendre : action du mécanicien → réaction observée → piste prioritaire.
 
 
 
@@ -2271,7 +2843,7 @@ if page == "Diagnostic":
 
 
 
-                "Autre"
+                "Autre",
 
 
 
@@ -2279,7 +2851,7 @@ if page == "Diagnostic":
 
 
 
-            key="machine_type"
+            key="machine_type",
 
 
 
@@ -2299,7 +2871,7 @@ if page == "Diagnostic":
 
 
 
-            key="brand_model"
+            key="brand_model",
 
 
 
@@ -2319,7 +2891,7 @@ if page == "Diagnostic":
 
 
 
-            key="hours_km"
+            key="hours_km",
 
 
 
@@ -2375,7 +2947,7 @@ if page == "Diagnostic":
 
 
 
-                "Autre / inconnu"
+                "Autre / inconnu",
 
 
 
@@ -2383,7 +2955,7 @@ if page == "Diagnostic":
 
 
 
-            key="system"
+            key="system",
 
 
 
@@ -2407,7 +2979,7 @@ if page == "Diagnostic":
 
 
 
-            key="dtcs"
+            key="dtcs",
 
 
 
@@ -2431,7 +3003,7 @@ if page == "Diagnostic":
 
 
 
-        key="symptoms"
+        key="symptoms",
 
 
 
@@ -2455,7 +3027,7 @@ if page == "Diagnostic":
 
 
 
-        key="context"
+        key="context",
 
 
 
@@ -2479,7 +3051,7 @@ if page == "Diagnostic":
 
 
 
-        key="history"
+        key="history",
 
 
 
@@ -2571,7 +3143,7 @@ if page == "Diagnostic":
 
 
 
-            selected_system=system
+            selected_system=system,
 
 
 
@@ -2623,7 +3195,7 @@ if page == "Diagnostic":
 
 
 
-            "real_cause": ""
+            "real_cause": "",
 
 
 
@@ -2783,6 +3355,54 @@ if page == "Diagnostic":
 
 
 
+        if analysis.get("field_deductions"):
+
+
+
+            st.markdown("### Déductions terrain détectées")
+
+
+
+            for deduction in analysis["field_deductions"]:
+
+
+
+                with st.expander(deduction["title"], expanded=True):
+
+
+
+                    st.write("**Déduction :**")
+
+
+
+                    st.write(deduction["deduction"])
+
+
+
+                    st.write("**Changement de priorité :**")
+
+
+
+                    for item in deduction["priority_shift"]:
+
+
+
+                        st.write(f"- {item}")
+
+
+
+                    st.write("**Tests suivants recommandés :**")
+
+
+
+                    for item in deduction["next_tests"]:
+
+
+
+                        st.write(f"- {item}")
+
+
+
         st.markdown("### Hypothèses à vérifier")
 
 
@@ -2879,7 +3499,7 @@ if page == "Diagnostic":
 
 
 
-            "analysis": analysis
+            "analysis": analysis,
 
 
 
@@ -2903,23 +3523,11 @@ if page == "Diagnostic":
 
 
 
-            mime="application/json"
+            mime="application/json",
 
 
 
         )
-
-
-
-# =========================================================
-
-
-
-# HISTORIQUE
-
-
-
-# =========================================================
 
 
 
@@ -2999,18 +3607,6 @@ elif page == "Historique":
 
 
 
-# =========================================================
-
-
-
-# VALIDATION HUMAINE
-
-
-
-# =========================================================
-
-
-
 elif page == "Validation humaine":
 
 
@@ -3079,7 +3675,7 @@ elif page == "Validation humaine":
 
 
 
-            "À vérifier plus tard"
+            "À vérifier plus tard",
 
 
 
@@ -3099,7 +3695,7 @@ elif page == "Validation humaine":
 
 
 
-            index=validation_options.index(case.get("human_validation", "Non validé"))
+            index=validation_options.index(case.get("human_validation", "Non validé")),
 
 
 
@@ -3119,7 +3715,7 @@ elif page == "Validation humaine":
 
 
 
-            height=140
+            height=140,
 
 
 
@@ -3143,23 +3739,11 @@ elif page == "Validation humaine":
 
 
 
-# =========================================================
-
-
-
-# À PROPOS
-
-
-
-# =========================================================
-
-
-
 elif page == "À propos":
 
 
 
-    st.header("À propos de MecaTech IA v0.4")
+    st.header("À propos de MecaTech IA v0.4.1")
 
 
 
@@ -3167,7 +3751,7 @@ elif page == "À propos":
 
 
 
-    Cette version introduit un moteur général modulaire.
+    Cette version introduit une couche de déduction terrain.
 
 
 
@@ -3180,6 +3764,10 @@ elif page == "À propos":
 
 
     - l’app extrait les faits, conditions, tests déjà faits et codes;
+
+
+
+    - elle détecte certaines relations Action → Réaction → Déduction;
 
 
 
@@ -3199,19 +3787,19 @@ elif page == "À propos":
 
 
 
-    Différence avec les versions précédentes :
+    Exemple :
 
 
 
-    - moins de logique codée pour un cas précis;
+    Si une action sur un capteur change le comportement du système,
 
 
 
-    - plus de raisonnement général par système;
+    MecaTech IA priorise le capteur, son signal, son connecteur, son faisceau ou l’interprétation du module,
 
 
 
-    - meilleure base pour tester plusieurs problèmes mécaniques différents.
+    au lieu de conclure directement à une panne mécanique.
 
 
 
@@ -3255,5 +3843,5 @@ st.divider()
 
 
 
-st.caption("MecaTech IA v0.4 — Moteur général modulaire | Read the fault. Find the cause. Fix it — once.")
+st.caption("MecaTech IA v0.4.1 — Moteur général modulaire + déduction terrain | Read the fault. Find the cause. Fix it — once.")
 
