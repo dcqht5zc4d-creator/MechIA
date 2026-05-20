@@ -355,31 +355,111 @@ SYSTEM_MODULES = {
 
 
 
-        "hypotheses": [
+        "hypotheses": {
 
 
 
-            "Commande électrique / logique de transmission",
+            "Mécanique": [
 
 
 
-            "Sélecteur, faisceau, connecteur, masse ou alimentation intermittente",
+                "Embrayage interne, composant mécanique, arbre ou train d’engrenage à vérifier",
 
 
 
-            "Capteur de vitesse entrée/sortie ou information incohérente",
+                "Défaut mécanique interne à confirmer seulement après tests externes",
 
 
 
-            "Pression de commande, valve, solénoïde ou embrayage interne",
+                "Usure, blocage ou dommage interne affectant le rapport ou la propulsion",
 
 
 
-            "Défaut mécanique interne à confirmer seulement après tests externes",
+            ],
 
 
 
-        ],
+            "Électrique / commande": [
+
+
+
+                "Commande électrique / logique de transmission",
+
+
+
+                "Sélecteur, faisceau, connecteur, masse ou alimentation intermittente",
+
+
+
+                "Relais, fusible, sortie module ou alimentation de commande instable",
+
+
+
+            ],
+
+
+
+            "Hydraulique / pression": [
+
+
+
+                "Pression de commande transmission insuffisante ou instable",
+
+
+
+                "Valve, solénoïde hydraulique ou circuit de commande à vérifier",
+
+
+
+                "Restriction, fuite interne ou perte de pression sous condition",
+
+
+
+            ],
+
+
+
+            "Capteur / signal": [
+
+
+
+                "Capteur de vitesse entrée/sortie ou information incohérente",
+
+
+
+                "Signal de sélecteur ou retour de position incohérent",
+
+
+
+                "Capteur alimenté mais signal de retour incorrect",
+
+
+
+            ],
+
+
+
+            "Module / logique": [
+
+
+
+                "Module qui demande une protection ou un retour au neutre",
+
+
+
+                "Autorisation de commande ou condition logique non satisfaite",
+
+
+
+                "État mémorisé / protection temporaire après défaut",
+
+
+
+            ],
+
+
+
+        },
 
 
 
@@ -403,243 +483,11 @@ SYSTEM_MODULES = {
 
 
 
-            "Vérifier relais, fusibles, connecteurs exposés eau/sel/vibration.",
-
-
-
             "Mesurer pression de commande selon procédure OEM si disponible.",
 
 
 
             "Confirmer si le problème est présent en marche avant, reculons, toutes vitesses, chaud/froid.",
-
-
-
-        ],
-
-
-
-    },
-
-
-
-    "Hydraulique": {
-
-
-
-        "risk": "Moyen à élevé selon la fonction touchée, la pression et la possibilité de mouvement incontrôlé.",
-
-
-
-        "hypotheses": [
-
-
-
-            "Pression hydraulique insuffisante ou instable",
-
-
-
-            "Restriction filtre, crépine, huile contaminée ou mauvaise viscosité",
-
-
-
-            "Valve de contrôle qui colle, fuite interne ou commande pilotée incorrecte",
-
-
-
-            "Capteur de pression ou lecture électronique incohérente",
-
-
-
-            "Pompe faible, cavitation ou alimentation d’huile insuffisante",
-
-
-
-        ],
-
-
-
-        "tests": [
-
-
-
-            "Vérifier niveau, qualité, odeur, contamination et température d’huile.",
-
-
-
-            "Contrôler filtre, crépine et présence de limaille.",
-
-
-
-            "Mesurer pression principale, standby, pilotage et pression de fonction.",
-
-
-
-            "Comparer temps de cycle avec spécifications.",
-
-
-
-            "Isoler la fonction touchée et vérifier fuite interne possible.",
-
-
-
-            "Comparer lecture capteur avec manomètre mécanique.",
-
-
-
-            "Vérifier si le problème change avec température, charge ou régime moteur.",
-
-
-
-        ],
-
-
-
-    },
-
-
-
-    "Moteur": {
-
-
-
-        "risk": "Moyen à élevé si perte de puissance, surchauffe, pression d’huile ou fumée anormale.",
-
-
-
-        "hypotheses": [
-
-
-
-            "Restriction air, carburant ou échappement",
-
-
-
-            "Pression carburant, rail, pompe ou injecteur à vérifier",
-
-
-
-            "Turbo, EGR, DPF/SCR ou post-traitement limitant la puissance",
-
-
-
-            "Capteur moteur ou faisceau donnant une lecture incohérente",
-
-
-
-            "Problème mécanique moteur à confirmer par tests de base",
-
-
-
-        ],
-
-
-
-        "tests": [
-
-
-
-            "Lire codes actifs/inactifs moteur.",
-
-
-
-            "Vérifier pression carburant, restriction air, boost, EGT et charge moteur.",
-
-
-
-            "Comparer données live à froid et à chaud.",
-
-
-
-            "Inspecter filtre air, filtre carburant, lignes et connecteurs capteurs.",
-
-
-
-            "Vérifier commande turbo/EGR/DPF/SCR si applicable.",
-
-
-
-            "Contrôler pression d’huile, température coolant et restriction échappement.",
-
-
-
-            "Confirmer si le problème apparaît sous charge, au ralenti, à chaud ou au démarrage.",
-
-
-
-        ],
-
-
-
-    },
-
-
-
-    "Électrique": {
-
-
-
-        "risk": "Variable, mais élevé si le défaut provoque arrêt, comportement intermittent ou perte de commande.",
-
-
-
-        "hypotheses": [
-
-
-
-            "Mauvaise masse ou alimentation instable",
-
-
-
-            "Connecteur oxydé, fil cassé, faisceau frotté ou intermittent",
-
-
-
-            "Relais, fusible, alimentation module ou circuit sous charge",
-
-
-
-            "Capteur alimenté mais signal de retour incohérent",
-
-
-
-            "Communication CAN/J1939/J1708 ou module qui décroche",
-
-
-
-        ],
-
-
-
-        "tests": [
-
-
-
-            "Mesurer voltage source et chute de voltage sous charge.",
-
-
-
-            "Contrôler grounds principaux et secondaires.",
-
-
-
-            "Inspecter connecteurs exposés eau, sel, vibration, chaleur.",
-
-
-
-            "Faire wiggle test pendant surveillance live.",
-
-
-
-            "Vérifier alimentation, ground et signal de retour des capteurs.",
-
-
-
-            "Vérifier codes de communication et état réseau CAN/J1939/J1708.",
-
-
-
-            "Comparer le schéma électrique avec les points réellement mesurés.",
 
 
 
@@ -659,31 +507,111 @@ SYSTEM_MODULES = {
 
 
 
-        "hypotheses": [
+        "hypotheses": {
 
 
 
-            "Commande électrique, logique de sécurité ou condition d’autorisation non satisfaite",
+            "Mécanique": [
 
 
 
-            "Capteur de pression, switch, témoin ou signal de retour incohérent",
+                "Mécanisme de frein collé, usé, mal ajusté ou endommagé",
 
 
 
-            "Solénoïde/valve alimenté mais non fonctionnel mécaniquement",
+                "Linkage, ajustement, disque, ressort, piston ou composant physique à inspecter",
 
 
 
-            "Pression air/hydraulique insuffisante ou fuite interne",
+                "Frein capable de recevoir une commande mais mouvement mécanique bloqué ou incomplet",
 
 
 
-            "Mécanisme de frein collé, usé, mal ajusté ou endommagé",
+            ],
 
 
 
-        ],
+            "Électrique / commande": [
+
+
+
+                "Commande électrique, switch, relais, solénoïde ou sortie module à vérifier",
+
+
+
+                "Alimentation présente mais commande réelle sous charge non confirmée",
+
+
+
+                "Faisceau, connecteur, ground ou alimentation de commande instable",
+
+
+
+            ],
+
+
+
+            "Hydraulique / pression": [
+
+
+
+                "Pression air/hydraulique insuffisante ou fuite interne",
+
+
+
+                "Valve de commande du frein ou circuit de pression à vérifier",
+
+
+
+                "Pression présente à un endroit mais non transmise correctement au frein",
+
+
+
+            ],
+
+
+
+            "Capteur / signal": [
+
+
+
+                "Capteur de pression, switch, témoin ou signal de retour incohérent",
+
+
+
+                "Capteur alimenté mais valeur retournée au module incorrecte",
+
+
+
+                "Connecteur/faisceau du capteur modifie l’état logique du frein",
+
+
+
+            ],
+
+
+
+            "Module / logique": [
+
+
+
+                "Logique de sécurité ou condition d’autorisation non satisfaite",
+
+
+
+                "TCU/ECU interprète mal l’état du frein ou du capteur",
+
+
+
+                "Interlock ou protection empêche l’application ou la confirmation du frein",
+
+
+
+            ],
+
+
+
+        },
 
 
 
@@ -727,6 +655,406 @@ SYSTEM_MODULES = {
 
 
 
+    "Hydraulique": {
+
+
+
+        "risk": "Moyen à élevé selon la fonction touchée, la pression et la possibilité de mouvement incontrôlé.",
+
+
+
+        "hypotheses": {
+
+
+
+            "Mécanique": [
+
+
+
+                "Valve qui colle, fuite interne, cylindre ou composant mécanique bloqué",
+
+
+
+                "Usure mécanique ou restriction physique dans le circuit",
+
+
+
+            ],
+
+
+
+            "Électrique / commande": [
+
+
+
+                "Commande électrique de valve ou solénoïde hydraulique à vérifier",
+
+
+
+                "Faisceau, connecteur ou sortie module de commande hydraulique instable",
+
+
+
+            ],
+
+
+
+            "Hydraulique / pression": [
+
+
+
+                "Pression hydraulique insuffisante ou instable",
+
+
+
+                "Restriction filtre, crépine, huile contaminée ou mauvaise viscosité",
+
+
+
+                "Pompe faible, cavitation ou alimentation d’huile insuffisante",
+
+
+
+            ],
+
+
+
+            "Capteur / signal": [
+
+
+
+                "Capteur de pression ou lecture électronique incohérente",
+
+
+
+                "Signal capteur différent de la pression mesurée mécaniquement",
+
+
+
+            ],
+
+
+
+            "Module / logique": [
+
+
+
+                "Commande pilotée ou autorisation hydraulique bloquée par le module",
+
+
+
+                "État logique qui limite la fonction hydraulique",
+
+
+
+            ],
+
+
+
+        },
+
+
+
+        "tests": [
+
+
+
+            "Vérifier niveau, qualité, odeur, contamination et température d’huile.",
+
+
+
+            "Contrôler filtre, crépine et présence de limaille.",
+
+
+
+            "Mesurer pression principale, standby, pilotage et pression de fonction.",
+
+
+
+            "Comparer temps de cycle avec spécifications.",
+
+
+
+            "Comparer lecture capteur avec manomètre mécanique.",
+
+
+
+            "Vérifier si le problème change avec température, charge ou régime moteur.",
+
+
+
+        ],
+
+
+
+    },
+
+
+
+    "Moteur": {
+
+
+
+        "risk": "Moyen à élevé si perte de puissance, surchauffe, pression d’huile ou fumée anormale.",
+
+
+
+        "hypotheses": {
+
+
+
+            "Mécanique": [
+
+
+
+                "Compression, distribution, restriction mécanique ou usure moteur à vérifier",
+
+
+
+                "Problème mécanique interne à confirmer par tests de base",
+
+
+
+            ],
+
+
+
+            "Électrique / commande": [
+
+
+
+                "Faisceau, alimentation module, relais ou capteur moteur instable",
+
+
+
+                "Commande électrique d’injecteur, turbo, EGR ou système moteur à vérifier",
+
+
+
+            ],
+
+
+
+            "Hydraulique / pression": [
+
+
+
+                "Pression carburant, rail, pompe ou alimentation carburant à vérifier",
+
+
+
+                "Pression d’huile ou alimentation fluide moteur anormale",
+
+
+
+            ],
+
+
+
+            "Capteur / signal": [
+
+
+
+                "Capteur moteur donnant une lecture incohérente",
+
+
+
+                "Signal MAF/MAP/température/pression incompatible avec le symptôme",
+
+
+
+            ],
+
+
+
+            "Module / logique": [
+
+
+
+                "ECU en mode protection ou derate",
+
+
+
+                "Post-traitement, DPF/SCR/EGR limitant la puissance par logique",
+
+
+
+            ],
+
+
+
+        },
+
+
+
+        "tests": [
+
+
+
+            "Lire codes actifs/inactifs moteur.",
+
+
+
+            "Vérifier pression carburant, restriction air, boost, EGT et charge moteur.",
+
+
+
+            "Comparer données live à froid et à chaud.",
+
+
+
+            "Inspecter filtre air, filtre carburant, lignes et connecteurs capteurs.",
+
+
+
+            "Contrôler pression d’huile, température coolant et restriction échappement.",
+
+
+
+        ],
+
+
+
+    },
+
+
+
+    "Électrique": {
+
+
+
+        "risk": "Variable, mais élevé si le défaut provoque arrêt, comportement intermittent ou perte de commande.",
+
+
+
+        "hypotheses": {
+
+
+
+            "Mécanique": [
+
+
+
+                "Composant mécanique commandé électriquement bloqué ou usé",
+
+
+
+                "Actionneur reçoit une commande mais ne produit pas le mouvement attendu",
+
+
+
+            ],
+
+
+
+            "Électrique / commande": [
+
+
+
+                "Mauvaise masse ou alimentation instable",
+
+
+
+                "Connecteur oxydé, fil cassé, faisceau frotté ou intermittent",
+
+
+
+                "Relais, fusible, alimentation module ou circuit sous charge",
+
+
+
+            ],
+
+
+
+            "Hydraulique / pression": [
+
+
+
+                "Commande électrique correcte mais pression/réaction hydraulique absente",
+
+
+
+                "Solénoïde activé mais circuit de pression en aval à vérifier",
+
+
+
+            ],
+
+
+
+            "Capteur / signal": [
+
+
+
+                "Capteur alimenté mais signal de retour incohérent",
+
+
+
+                "Signal intermittent ou hors plage vers module",
+
+
+
+            ],
+
+
+
+            "Module / logique": [
+
+
+
+                "Communication CAN/J1939/J1708 ou module qui décroche",
+
+
+
+                "Module bloque une sortie à cause d’un interlock ou état logique",
+
+
+
+            ],
+
+
+
+        },
+
+
+
+        "tests": [
+
+
+
+            "Mesurer voltage source et chute de voltage sous charge.",
+
+
+
+            "Contrôler grounds principaux et secondaires.",
+
+
+
+            "Inspecter connecteurs exposés eau, sel, vibration, chaleur.",
+
+
+
+            "Faire wiggle test pendant surveillance live.",
+
+
+
+            "Vérifier alimentation, ground et signal de retour des capteurs.",
+
+
+
+            "Vérifier codes de communication et état réseau CAN/J1939/J1708.",
+
+
+
+        ],
+
+
+
+    },
+
+
+
     "Refroidissement": {
 
 
@@ -735,31 +1063,91 @@ SYSTEM_MODULES = {
 
 
 
-        "hypotheses": [
+        "hypotheses": {
 
 
 
-            "Radiateur obstrué, airflow insuffisant ou fan inefficace",
+            "Mécanique": [
 
 
 
-            "Thermostat, pompe à eau ou circulation coolant insuffisante",
+                "Pompe à eau, thermostat, bouchon pression ou circulation mécanique à vérifier",
 
 
 
-            "Air dans le système, bouchon pression ou fuite externe/interne",
+                "Obstruction radiateur, fan, courroie ou airflow insuffisant",
 
 
 
-            "Capteur température ou lecture erronée",
+            ],
 
 
 
-            "Charge moteur excessive ou problème secondaire causant chaleur",
+            "Électrique / commande": [
 
 
 
-        ],
+                "Commande fan, relais, capteur température ou faisceau à vérifier",
+
+
+
+                "Fan commandé électriquement mais non activé sous condition",
+
+
+
+            ],
+
+
+
+            "Hydraulique / pression": [
+
+
+
+                "Pression système coolant, air dans le circuit ou fuite interne/externe",
+
+
+
+                "Circulation insuffisante ou cavitation pompe",
+
+
+
+            ],
+
+
+
+            "Capteur / signal": [
+
+
+
+                "Capteur température ou lecture erronée",
+
+
+
+                "Différence entre lecture module et température réelle",
+
+
+
+            ],
+
+
+
+            "Module / logique": [
+
+
+
+                "Commande fan ou protection moteur gérée par module",
+
+
+
+                "ECU limite puissance à cause de température lue ou réelle",
+
+
+
+            ],
+
+
+
+        },
 
 
 
@@ -787,10 +1175,6 @@ SYSTEM_MODULES = {
 
 
 
-            "Vérifier si la surchauffe apparaît au ralenti, sous charge ou en déplacement.",
-
-
-
         ],
 
 
@@ -807,31 +1191,91 @@ SYSTEM_MODULES = {
 
 
 
-        "hypotheses": [
+        "hypotheses": {
 
 
 
-            "Pression hydraulique de direction insuffisante ou instable",
+            "Mécanique": [
 
 
 
-            "Valve orbitrol/commande direction qui colle ou fuit",
+                "Articulation, pivot, bushing, cylindre ou composant mécanique usé",
 
 
 
-            "Cylindre de direction avec fuite interne ou jeu mécanique",
+                "Jeu mécanique ou blocage physique dans la direction",
 
 
 
-            "Capteur/commande électronique direction incohérente",
+            ],
 
 
 
-            "Articulation, pivot, bushing ou composant mécanique usé",
+            "Électrique / commande": [
 
 
 
-        ],
+                "Commande électrique, valve pilotée ou capteur de direction à vérifier",
+
+
+
+                "Faisceau ou alimentation de commande direction instable",
+
+
+
+            ],
+
+
+
+            "Hydraulique / pression": [
+
+
+
+                "Pression hydraulique de direction insuffisante ou instable",
+
+
+
+                "Valve orbitrol/commande direction qui colle ou fuit",
+
+
+
+            ],
+
+
+
+            "Capteur / signal": [
+
+
+
+                "Capteur position/angle/pression direction incohérent",
+
+
+
+                "Signal de retour direction mal interprété",
+
+
+
+            ],
+
+
+
+            "Module / logique": [
+
+
+
+                "Module limite ou bloque une commande de direction assistée",
+
+
+
+                "Interlock ou logique de sécurité direction à vérifier",
+
+
+
+            ],
+
+
+
+        },
 
 
 
@@ -855,10 +1299,6 @@ SYSTEM_MODULES = {
 
 
 
-            "Vérifier valve direction/orbitrol et fuite interne possible.",
-
-
-
             "Lire codes et données live si direction assistée électroniquement.",
 
 
@@ -879,31 +1319,91 @@ SYSTEM_MODULES = {
 
 
 
-        "hypotheses": [
+        "hypotheses": {
 
 
 
-            "Commande électrique/PTO non autorisée ou condition de sécurité absente",
+            "Mécanique": [
 
 
 
-            "Solénoïde, relais, switch ou faisceau PTO intermittent",
+                "Embrayage PTO, arbre, clutch ou composant mécanique usé",
 
 
 
-            "Pression hydraulique/pneumatique insuffisante pour engagement",
+                "Accessoire entraîné bloqué ou charge mécanique excessive",
 
 
 
-            "Embrayage PTO, arbre, clutch ou composant mécanique usé",
+            ],
 
 
 
-            "Capteur de position/vitesse PTO incohérent",
+            "Électrique / commande": [
 
 
 
-        ],
+                "Solénoïde, relais, switch ou faisceau PTO intermittent",
+
+
+
+                "Commande électrique/PTO non autorisée ou condition de sécurité absente",
+
+
+
+            ],
+
+
+
+            "Hydraulique / pression": [
+
+
+
+                "Pression hydraulique/pneumatique insuffisante pour engagement",
+
+
+
+                "Valve ou circuit de commande PTO à vérifier",
+
+
+
+            ],
+
+
+
+            "Capteur / signal": [
+
+
+
+                "Capteur de position/vitesse PTO incohérent",
+
+
+
+                "Retour d’état engagé/non engagé mal interprété",
+
+
+
+            ],
+
+
+
+            "Module / logique": [
+
+
+
+                "Interlock de sécurité ou condition d’autorisation PTO non satisfaite",
+
+
+
+                "Module bloque l’engagement à cause d’un état machine",
+
+
+
+            ],
+
+
+
+        },
 
 
 
@@ -944,6 +1444,66 @@ SYSTEM_MODULES = {
 
 
 }
+
+
+
+def normalize_fault_nature(selected_nature: str, text: str) -> str:
+
+
+
+    if selected_nature != "Inconnue / à déterminer":
+
+
+
+        return selected_nature
+
+
+
+    t = text.lower()
+
+
+
+    if contains_any(t, ["mécanique", "bloqué", "usé", "cassé", "linkage", "jeu", "ajustement"]):
+
+
+
+        return "Mécanique"
+
+
+
+    if contains_any(t, ["courant", "voltage", "relais", "fusible", "solénoïde", "solenoide", "commande"]):
+
+
+
+        return "Électrique / commande"
+
+
+
+    if contains_any(t, ["pression", "hydraulique", "air", "valve", "pompe"]):
+
+
+
+        return "Hydraulique / pression"
+
+
+
+    if contains_any(t, ["capteur", "signal", "témoin", "temoin", "voyant"]):
+
+
+
+        return "Capteur / signal"
+
+
+
+    if contains_any(t, ["module", "tcu", "ecu", "interlock", "autorisation", "logique", "reset"]):
+
+
+
+        return "Module / logique"
+
+
+
+    return "Inconnue / à déterminer"
 
 
 
@@ -1035,14 +1595,6 @@ def detect_general_facts(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    if contains_any(text, ["peu importe la vitesse", "toutes les vitesses", "tous les rapports"]):
-
-
-
-        conditions.append("Toutes vitesses / tous rapports")
-
-
-
     if contains_any(text, ["pas de code", "aucun code", "aucun défaut", "no code", "pas d'erreur"]):
 
 
@@ -1131,14 +1683,6 @@ def detect_general_facts(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    if contains_any(text, ["perte puissance", "manque de force", "boucanne", "fumée", "fumee"]):
-
-
-
-        facts.append("Perte de puissance / fumée")
-
-
-
     if contains_any(text, ["reset", "redémarre", "redemarre", "arrête repart", "arrete repart", "redémarrage"]):
 
 
@@ -1171,7 +1715,7 @@ def detect_general_facts(machine, symptoms, dtcs, context, history) -> dict:
 
 
 
-    if contains_any(text, ["filtre ok", "filtre remplacé", "filtre change", "filtre changé", "filtre neuf"]):
+    if contains_any(text, ["filtre ok", "filtre remplacé", "filtre changé", "filtre neuf"]):
 
 
 
@@ -1415,6 +1959,10 @@ def detect_field_deductions(machine, symptoms, dtcs, context, history) -> list[d
 
 
 
+            "preferred_nature": "Capteur / signal",
+
+
+
         })
 
 
@@ -1427,7 +1975,7 @@ def detect_field_deductions(machine, symptoms, dtcs, context, history) -> list[d
 
 
 
-        "bouge le fil", "connecteur", "faisceau", "fil cassé", "fil coupe", "fil coupé"
+        "bouge le fil", "connecteur", "faisceau", "fil cassé", "fil coupé"
 
 
 
@@ -1516,6 +2064,10 @@ def detect_field_deductions(machine, symptoms, dtcs, context, history) -> list[d
 
 
             ],
+
+
+
+            "preferred_nature": "Électrique / commande",
 
 
 
@@ -1643,6 +2195,10 @@ def detect_field_deductions(machine, symptoms, dtcs, context, history) -> list[d
 
 
 
+            "preferred_nature": "Électrique / commande",
+
+
+
         })
 
 
@@ -1715,107 +2271,7 @@ def detect_field_deductions(machine, symptoms, dtcs, context, history) -> list[d
 
 
 
-        })
-
-
-
-    maintenance_done = contains_any(text, [
-
-
-
-        "filtre remplacé", "filtre ok", "huile ok", "pièce remplacée", "piece remplacee",
-
-
-
-        "capteur remplacé", "solénoïde remplacé", "nettoyé", "nettoye"
-
-
-
-    ])
-
-
-
-    no_change = contains_any(text, [
-
-
-
-        "aucun changement", "pas changé", "pas changer", "même problème",
-
-
-
-        "symptômes reviennent", "symptomes reviennent", "revient pareil"
-
-
-
-    ])
-
-
-
-    if maintenance_done and no_change:
-
-
-
-        deductions.append({
-
-
-
-            "title": "Une intervention ou pièce remplacée n’a pas changé le symptôme",
-
-
-
-            "deduction": (
-
-
-
-                "Si une intervention n’a produit aucun changement, cette piste descend en priorité. "
-
-
-
-                "Il faut remonter vers la commande, la mesure objective, le signal ou une condition non vérifiée."
-
-
-
-            ),
-
-
-
-            "priority_shift": [
-
-
-
-                "Réduire priorité : pièce ou entretien déjà testé sans effet",
-
-
-
-                "Augmenter priorité : mesure objective / commande / signal / condition manquante",
-
-
-
-            ],
-
-
-
-            "next_tests": [
-
-
-
-                "Lister précisément les pièces ou interventions déjà faites.",
-
-
-
-                "Comparer avant/après avec mesure objective.",
-
-
-
-                "Vérifier la commande et le signal plutôt que répéter le remplacement.",
-
-
-
-                "Identifier la condition qui n’a pas encore été testée.",
-
-
-
-            ],
+            "preferred_nature": "Mécanique",
 
 
 
@@ -1907,6 +2363,10 @@ def detect_field_deductions(machine, symptoms, dtcs, context, history) -> list[d
 
 
 
+            "preferred_nature": "Module / logique",
+
+
+
         })
 
 
@@ -1987,7 +2447,31 @@ def choose_primary_system(selected_system: str, text: str) -> str:
 
 
 
-def build_hypotheses(primary_system: str, detected: dict, field_deductions: list[dict]) -> list[dict]:
+def determine_active_nature(selected_nature: str, text: str, field_deductions: list[dict]) -> str:
+
+
+
+    if selected_nature != "Inconnue / à déterminer":
+
+
+
+        return selected_nature
+
+
+
+    if field_deductions:
+
+
+
+        return field_deductions[0].get("preferred_nature", "Inconnue / à déterminer")
+
+
+
+    return normalize_fault_nature(selected_nature, text)
+
+
+
+def build_hypotheses(primary_system: str, active_nature: str, detected: dict, field_deductions: list[dict]) -> list[dict]:
 
 
 
@@ -2099,6 +2583,34 @@ def build_hypotheses(primary_system: str, detected: dict, field_deductions: list
 
 
 
+    hypotheses_by_nature = module["hypotheses"]
+
+
+
+    ordered_natures = []
+
+
+
+    if active_nature in hypotheses_by_nature:
+
+
+
+        ordered_natures.append(active_nature)
+
+
+
+    for nature in ["Capteur / signal", "Électrique / commande", "Module / logique", "Hydraulique / pression", "Mécanique"]:
+
+
+
+        if nature not in ordered_natures and nature in hypotheses_by_nature:
+
+
+
+            ordered_natures.append(nature)
+
+
+
     facts = detected["facts"]
 
 
@@ -2111,71 +2623,83 @@ def build_hypotheses(primary_system: str, detected: dict, field_deductions: list
 
 
 
-    for item in module["hypotheses"]:
+    for nature in ordered_natures:
 
 
 
-        support = [
+        for item in hypotheses_by_nature[nature]:
 
 
 
-            f"Système principal : {primary_system}.",
+            support = [
 
 
 
-            "Symptôme/faits observés : " + ", ".join(facts) if facts else "Peu de faits confirmés dans l’entrée.",
+                f"Système principal : {primary_system}.",
 
 
 
-            "Conditions : " + ", ".join(conditions) if conditions else "Conditions de panne à préciser.",
+                f"Nature priorisée : {active_nature}.",
 
 
 
-            "Tests déjà faits : " + ", ".join(tests_done) if tests_done else "Tests déjà faits non précisés.",
+                f"Catégorie de cette piste : {nature}.",
 
 
 
-        ]
+                "Symptôme/faits observés : " + ", ".join(facts) if facts else "Peu de faits confirmés dans l’entrée.",
 
 
 
-        limits = [
+                "Conditions : " + ", ".join(conditions) if conditions else "Conditions de panne à préciser.",
 
 
 
-            "Hypothèse à vérifier, pas conclusion finale.",
+                "Tests déjà faits : " + ", ".join(tests_done) if tests_done else "Tests déjà faits non précisés.",
 
 
 
-            "Confirmer avec mesures, données live, schéma ou procédure OEM.",
+            ]
 
 
 
-            "Ne pas remplacer de pièce sans test de confirmation.",
+            limits = [
 
 
 
-        ]
+                "Hypothèse à vérifier, pas conclusion finale.",
 
 
 
-        hypotheses.append({
+                "Confirmer avec mesures, données live, schéma ou procédure OEM.",
 
 
 
-            "title": item,
+                "Ne pas remplacer de pièce sans test de confirmation.",
 
 
 
-            "support": support,
+            ]
 
 
 
-            "limits": limits,
+            hypotheses.append({
 
 
 
-        })
+                "title": item,
+
+
+
+                "support": support,
+
+
+
+                "limits": limits,
+
+
+
+            })
 
 
 
@@ -2183,7 +2707,7 @@ def build_hypotheses(primary_system: str, detected: dict, field_deductions: list
 
 
 
-def build_universal_tests(primary_system: str, detected: dict, field_deductions: list[dict]) -> list[str]:
+def build_universal_tests(primary_system: str, active_nature: str, detected: dict, field_deductions: list[dict]) -> list[str]:
 
 
 
@@ -2196,6 +2720,114 @@ def build_universal_tests(primary_system: str, detected: dict, field_deductions:
 
 
         deduction_tests.extend(deduction["next_tests"])
+
+
+
+    nature_tests = {
+
+
+
+        "Mécanique": [
+
+
+
+            "Inspecter physiquement le composant : jeu, usure, blocage, ajustement, mouvement réel.",
+
+
+
+            "Confirmer que la commande arrive au composant mais que la réaction mécanique est absente ou anormale.",
+
+
+
+            "Comparer mouvement demandé vs mouvement réel.",
+
+
+
+        ],
+
+
+
+        "Électrique / commande": [
+
+
+
+            "Mesurer alimentation et ground sous charge, pas seulement à vide.",
+
+
+
+            "Vérifier relais, fusibles, sortie module, connecteurs et continuité.",
+
+
+
+            "Faire wiggle test pendant surveillance live.",
+
+
+
+        ],
+
+
+
+        "Hydraulique / pression": [
+
+
+
+            "Mesurer pression réelle avec manomètre selon procédure.",
+
+
+
+            "Comparer pression demandée vs pression réelle.",
+
+
+
+            "Vérifier restriction, fuite interne, valve, pompe et retour.",
+
+
+
+        ],
+
+
+
+        "Capteur / signal": [
+
+
+
+            "Mesurer alimentation, ground et signal de retour du capteur.",
+
+
+
+            "Comparer valeur capteur réelle avec données live du module.",
+
+
+
+            "Manipuler connecteur/faisceau du capteur pendant surveillance live.",
+
+
+
+        ],
+
+
+
+        "Module / logique": [
+
+
+
+            "Lire états live du module : demande, autorisation, interlock, protection.",
+
+
+
+            "Comparer comportement avant/après reset.",
+
+
+
+            "Vérifier conditions de sécurité qui bloquent la commande.",
+
+
+
+        ],
+
+
+
+    }
 
 
 
@@ -2215,14 +2847,6 @@ def build_universal_tests(primary_system: str, detected: dict, field_deductions:
 
 
 
-        "Vérifier les bases : niveaux, qualité fluide, alimentation, grounds, connecteurs visibles.",
-
-
-
-        "Reproduire le problème de façon contrôlée si sécuritaire.",
-
-
-
         "Comparer commande demandée vs réaction réelle avec données live si disponibles.",
 
 
@@ -2235,39 +2859,31 @@ def build_universal_tests(primary_system: str, detected: dict, field_deductions:
 
 
 
-    if module:
+    specific_tests = module["tests"] if module else [
 
 
 
-        specific_tests = module["tests"]
+        "Identifier le système principal avant de conclure.",
 
 
 
-    else:
+        "Ajouter données live ou mesures objectives.",
 
 
 
-        specific_tests = [
+        "Comparer avec schéma/manuel OEM.",
 
 
 
-            "Identifier le système principal avant de conclure.",
+    ]
 
 
 
-            "Ajouter données live ou mesures objectives.",
+    selected_nature_tests = nature_tests.get(active_nature, [])
 
 
 
-            "Comparer avec schéma/manuel OEM.",
-
-
-
-        ]
-
-
-
-    return list(dict.fromkeys(deduction_tests + base_tests + specific_tests))
+    return list(dict.fromkeys(deduction_tests + selected_nature_tests + base_tests + specific_tests))
 
 
 
@@ -2399,7 +3015,7 @@ def determine_severity(primary_system: str, detected: dict) -> tuple[str, str]:
 
 
 
-def build_prudence(primary_system: str, detected: dict, field_deductions: list[dict]) -> list[str]:
+def build_prudence(primary_system: str, active_nature: str, detected: dict, field_deductions: list[dict]) -> list[str]:
 
 
 
@@ -2439,19 +3055,19 @@ def build_prudence(primary_system: str, detected: dict, field_deductions: list[d
 
 
 
-    if "Filtre déclaré OK/remplacé" in detected["tests_done"] or "Huile / niveau déclaré OK" in detected["tests_done"]:
+    if active_nature == "Mécanique":
 
 
 
-        prudence.append("Entretien de base déclaré OK : passer aux tests de commande, pression, signal, faisceau et données live.")
+        prudence.append("Nature mécanique priorisée : ne pas laisser les mots capteur/courant/module détourner l’analyse sans preuve.")
 
 
 
-    if "Intermittent / revient" in detected["conditions"]:
+    if active_nature in ["Électrique / commande", "Capteur / signal", "Module / logique"]:
 
 
 
-        prudence.append("Panne intermittente : prioriser vibration, chaleur, humidité, connecteurs, masses et alimentation.")
+        prudence.append("Nature commande/signal/module priorisée : confirmer avec données live et mesures, pas seulement avec présence de courant.")
 
 
 
@@ -2555,7 +3171,7 @@ def confidence_label(detected: dict, field_deductions: list[dict]) -> str:
 
 
 
-def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
+def analyze_case(machine, symptoms, dtcs, context, history, selected_system, selected_nature):
 
 
 
@@ -2575,19 +3191,23 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
+    active_nature = determine_active_nature(selected_nature, text, field_deductions)
+
+
+
     severity, risk = determine_severity(primary_system, detected)
 
 
 
-    hypotheses = build_hypotheses(primary_system, detected, field_deductions)
+    hypotheses = build_hypotheses(primary_system, active_nature, detected, field_deductions)
 
 
 
-    tests = build_universal_tests(primary_system, detected, field_deductions)
+    tests = build_universal_tests(primary_system, active_nature, detected, field_deductions)
 
 
 
-    prudence = build_prudence(primary_system, detected, field_deductions)
+    prudence = build_prudence(primary_system, active_nature, detected, field_deductions)
 
 
 
@@ -2607,11 +3227,15 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
-            f"Analyse générale centrée sur le système : {primary_system}. "
+            f"Analyse centrée sur le système : {primary_system}. "
 
 
 
-            "Le moteur ne conclut pas à une pièce défectueuse; il structure les pistes et les tests à effectuer."
+            f"Nature priorisée : {active_nature}. "
+
+
+
+            "Le moteur classe les pistes selon le choix du mécanicien, les faits et les réactions terrain."
 
 
 
@@ -2627,11 +3251,19 @@ def analyze_case(machine, symptoms, dtcs, context, history, selected_system):
 
 
 
-        "version": "v0.4.1",
+        "version": "v0.4.2",
 
 
 
         "primary_system": primary_system,
+
+
+
+        "active_nature": active_nature,
+
+
+
+        "selected_nature": selected_nature,
 
 
 
@@ -2699,7 +3331,7 @@ st.title("🔧 MecaTech IA")
 
 
 
-st.caption("Prototype MVP v0.4.1 — moteur général modulaire + déduction terrain")
+st.caption("Prototype MVP v0.4.2 — système + nature de panne + déduction terrain")
 
 
 
@@ -2711,7 +3343,7 @@ with col1:
 
 
 
-    st.metric("Version", "v0.4.1")
+    st.metric("Version", "v0.4.2")
 
 
 
@@ -2719,7 +3351,7 @@ with col2:
 
 
 
-    st.metric("Mode", "Général + terrain")
+    st.metric("Mode", "Général modulaire")
 
 
 
@@ -2779,11 +3411,11 @@ if page == "Diagnostic":
 
 
 
-    Version v0.4.1 : moteur général modulaire avec déduction terrain.
+    Version v0.4.2 : le système touché et la nature suspectée sont séparés.
 
 
 
-    L’app tente de comprendre : action du mécanicien → réaction observée → piste prioritaire.
+    Les mots-clés enrichissent l’analyse, mais ne remplacent pas le choix du mécanicien.
 
 
 
@@ -2907,7 +3539,7 @@ if page == "Diagnostic":
 
 
 
-            "Système principal",
+            "Système principal touché",
 
 
 
@@ -2963,6 +3595,54 @@ if page == "Diagnostic":
 
 
 
+        fault_nature = st.selectbox(
+
+
+
+            "Nature suspectée de la panne",
+
+
+
+            [
+
+
+
+                "Inconnue / à déterminer",
+
+
+
+                "Mécanique",
+
+
+
+                "Électrique / commande",
+
+
+
+                "Hydraulique / pression",
+
+
+
+                "Capteur / signal",
+
+
+
+                "Module / logique",
+
+
+
+            ],
+
+
+
+            key="fault_nature",
+
+
+
+        )
+
+
+
         dtcs = st.text_area(
 
 
@@ -2975,7 +3655,7 @@ if page == "Diagnostic":
 
 
 
-            height=120,
+            height=100,
 
 
 
@@ -3067,11 +3747,15 @@ if page == "Diagnostic":
 
 
 
+        st.session_state.last_analysis = None
+
+
+
         st.session_state.analysis_counter += 1
 
 
 
-        machine = f"{machine_type} | {brand_model} | {hours_km} | {system}"
+        machine = f"{machine_type} | {brand_model} | {hours_km} | {system} | {fault_nature}"
 
 
 
@@ -3092,6 +3776,10 @@ if page == "Diagnostic":
 
 
             "system": system,
+
+
+
+            "fault_nature": fault_nature,
 
 
 
@@ -3144,6 +3832,10 @@ if page == "Diagnostic":
 
 
             selected_system=system,
+
+
+
+            selected_nature=fault_nature,
 
 
 
@@ -3251,7 +3943,7 @@ if page == "Diagnostic":
 
 
 
-            st.metric("Système principal", analysis["primary_system"])
+            st.metric("Système", analysis["primary_system"])
 
 
 
@@ -3259,7 +3951,7 @@ if page == "Diagnostic":
 
 
 
-            st.metric("Sévérité", analysis["severity"])
+            st.metric("Nature priorisée", analysis["active_nature"])
 
 
 
@@ -3567,7 +4259,7 @@ elif page == "Historique":
 
 
 
-                f"Analyse #{analysis['run_id']} — {analysis['primary_system']} — {analysis['timestamp']}"
+                f"Analyse #{analysis['run_id']} — {analysis['primary_system']} — {analysis['active_nature']} — {analysis['timestamp']}"
 
 
 
@@ -3648,6 +4340,10 @@ elif page == "Validation humaine":
 
 
         st.write("**Système principal :**", analysis["primary_system"])
+
+
+
+        st.write("**Nature priorisée :**", analysis["active_nature"])
 
 
 
@@ -3743,7 +4439,7 @@ elif page == "À propos":
 
 
 
-    st.header("À propos de MecaTech IA v0.4.1")
+    st.header("À propos de MecaTech IA v0.4.2")
 
 
 
@@ -3751,7 +4447,39 @@ elif page == "À propos":
 
 
 
-    Cette version introduit une couche de déduction terrain.
+    Cette version sépare deux choses importantes :
+
+
+
+    1. Le système principal touché :
+
+
+
+       frein, transmission, hydraulique, moteur, direction, etc.
+
+
+
+    2. La nature suspectée de la panne :
+
+
+
+       mécanique, électrique/commande, hydraulique/pression, capteur/signal ou module/logique.
+
+
+
+    Pourquoi :
+
+
+
+    Un problème de frein peut contenir des mots comme courant, capteur, TCU ou solénoïde
+
+
+
+    sans devenir automatiquement un problème électrique. Le mécanicien doit pouvoir dire :
+
+
+
+    “Je veux analyser ça comme un problème mécanique” ou “comme un problème capteur/signal”.
 
 
 
@@ -3763,75 +4491,19 @@ elif page == "À propos":
 
 
 
-    - l’app extrait les faits, conditions, tests déjà faits et codes;
+    - la nature suspectée choisie réordonne les hypothèses;
 
 
 
-    - elle détecte certaines relations Action → Réaction → Déduction;
+    - les mots-clés enrichissent l’analyse, mais ne décident pas seuls;
 
 
 
-    - elle propose des hypothèses générales adaptées au système;
+    - les déductions terrain peuvent aussi modifier la priorité;
 
 
 
-    - elle donne une séquence de tests;
-
-
-
-    - elle affiche les limites et informations manquantes;
-
-
-
-    - elle ne conclut pas à une pièce sans preuve.
-
-
-
-    Exemple :
-
-
-
-    Si une action sur un capteur change le comportement du système,
-
-
-
-    MecaTech IA priorise le capteur, son signal, son connecteur, son faisceau ou l’interprétation du module,
-
-
-
-    au lieu de conclure directement à une panne mécanique.
-
-
-
-    Limites actuelles :
-
-
-
-    - pas encore de vraie API IA;
-
-
-
-    - pas encore de base de données persistante;
-
-
-
-    - pas encore de recherche web;
-
-
-
-    - pas encore de documentation OEM;
-
-
-
-    - pas encore de données live J1939/J1708.
-
-
-
-    Objectif :
-
-
-
-    aider le mécanicien à structurer son diagnostic, sans remplacer son jugement.
+    - aucune conclusion finale sans validation humaine/OEM.
 
 
 
@@ -3843,5 +4515,5 @@ st.divider()
 
 
 
-st.caption("MecaTech IA v0.4.1 — Moteur général modulaire + déduction terrain | Read the fault. Find the cause. Fix it — once.")
+st.caption("MecaTech IA v0.4.2 — Système + nature de panne + déduction terrain | Read the fault. Find the cause. Fix it — once.")
 
