@@ -263,7 +263,7 @@ def call_openai_analysis(case: dict) -> dict:
         model=model,
         input=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
+            {"role": "user", "content": json.dumps(user_payload, ensure_ascii=True)},
         ],
         temperature=0.2,
     )
