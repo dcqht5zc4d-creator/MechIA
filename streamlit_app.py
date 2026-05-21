@@ -10,7 +10,7 @@ try:
 except Exception:
     OpenAI = None
 
-APP_VERSION = "MecaTech IA Clean MVP v0.2.0 — API IA encadrée"
+APP_VERSION = "MecaTech IA Clean MVP v0.2.1 — API IA + formulaire persistant"
 
 st.set_page_config(page_title="MecaTech IA", page_icon="🔧", layout="wide")
 
@@ -45,8 +45,33 @@ DEFAULT_FORM = {
     "history": "",
 }
 
-for k, v in DEFAULT_FORM.items():
-    st.session_state.setdefault(f"console_{k}", v)
+# Mémoire permanente du formulaire.
+# Important Streamlit: quand une page ne rend plus un widget, sa clé widget peut être nettoyée.
+# Donc on garde une copie séparée dans form_memory, indépendante des widgets visibles.
+st.session_state.setdefault("form_memory", DEFAULT_FORM.copy())
+
+# À chaque rerun, si les widgets console existent encore, on copie leurs valeurs dans la mémoire permanente
+# AVANT que la navigation puisse les faire disparaître.
+def sync_form_from_widgets():
+    mem = st.session_state.get("form_memory", DEFAULT_FORM.copy()).copy()
+    for k, default in DEFAULT_FORM.items():
+        widget_key = f"console_{k}"
+        if widget_key in st.session_state:
+            mem[k] = st.session_state[widget_key]
+        else:
+            mem.setdefault(k, default)
+    st.session_state.form_memory = mem
+
+
+def hydrate_console_widgets():
+    mem = st.session_state.get("form_memory", DEFAULT_FORM.copy())
+    for k, default in DEFAULT_FORM.items():
+        widget_key = f"console_{k}"
+        if widget_key not in st.session_state:
+            st.session_state[widget_key] = mem.get(k, default)
+
+
+sync_form_from_widgets()
 
 st.session_state.setdefault("analysis_counter", 0)
 st.session_state.setdefault("last_analysis", None)
@@ -60,7 +85,9 @@ def now_str() -> str:
 
 
 def snapshot_form() -> dict:
-    return {k: st.session_state.get(f"console_{k}", v) for k, v in DEFAULT_FORM.items()}
+    # Force une dernière synchronisation avant analyse/sauvegarde.
+    sync_form_from_widgets()
+    return st.session_state.get("form_memory", DEFAULT_FORM.copy()).copy()
 
 
 def input_hash(data: dict) -> str:
@@ -69,12 +96,14 @@ def input_hash(data: dict) -> str:
 
 
 def clear_form():
+    st.session_state.form_memory = DEFAULT_FORM.copy()
     for k, v in DEFAULT_FORM.items():
         st.session_state[f"console_{k}"] = v
     st.session_state.saved_form_at = now_str()
 
 
 def save_form():
+    sync_form_from_widgets()
     st.session_state.saved_form_at = now_str()
 
 
@@ -211,27 +240,27 @@ def local_fallback_analysis(case: dict) -> dict:
 
 
 SYSTEM_PROMPT = """
-Tu es MecaTech IA, assistant de diagnostic mécanique pour équipements lourds.
-Tu ne donnes jamais une cause finale certaine. Tu classes des hypothèses à vérifier.
-Tu tiens compte des preuves terrain cochées et des notes terrain autant ou plus que les symptômes.
+You are MecaTech IA, a structured diagnostic assistant for heavy equipment.
+You never provide a certain final cause. You rank hypotheses to verify.
+Use field evidence and field notes as strongly as, or stronger than, symptoms.
 
-Règles mécaniques générales:
-- Commande électrique présente + pression/mouvement absent = priorité après la commande: valve, solénoïde bloqué mécaniquement/hydrauliquement, restriction, obstruction, actionneur ou mécanisme.
-- Électricité présente ne confirme pas le fonctionnement hydraulique/mécanique.
-- Capteur manipulé/débranché + symptôme change = capteur, signal retour, connecteur, faisceau ou interprétation module monte en priorité.
-- Courant direct active composant = composant aval probablement capable; vérifier commande, relais, module, interlock, faisceau amont.
-- Courant direct n'active pas composant = actionneur, valve, pression, mécanique aval monte en priorité.
-- Pression présente avant valve mais absente après valve = valve/spool/solénoïde/restriction monte en priorité.
-- Reset/redémarrage change temporairement le comportement = logique module, interlock, défaut mémorisé ou état capteur à vérifier.
-- Frein de stationnement incertain = risque critique.
+Core mechanical rules:
+- Electrical command present + pressure/movement absent = prioritize downstream of the command: stuck valve, mechanically/hydraulically blocked solenoid, restriction, obstruction, actuator, or mechanism.
+- Electrical power present does not confirm hydraulic/mechanical function.
+- Sensor moved/disconnected + symptom changes = sensor, return signal, connector, harness, or module interpretation becomes higher priority.
+- Direct power activates component = downstream component is likely capable; check command, relay, module, interlock, upstream harness.
+- Direct power does not activate component = actuator, valve, pressure, or downstream mechanism becomes higher priority.
+- Pressure present before valve but absent after valve = valve/spool/solenoid/restriction becomes higher priority.
+- Restart/reset temporarily changes behavior = module logic, interlock, stored fault, or sensor state should be checked.
+- Parking brake or uncertain brake function = critical safety risk.
 
-Réponds seulement en JSON valide, sans markdown, selon cette structure:
+Answer ONLY valid JSON, no markdown, with this structure:
 {
   "analysis_mode": "api_ai",
   "summary": "string",
   "system_affected": "string",
   "fault_nature_interpreted": "string",
-  "risk_level": "Faible|Moyen|Élevé|Critique|À évaluer",
+  "risk_level": "Faible|Moyen|Eleve|Critique|A evaluer",
   "safety_warning": "string",
   "detected_facts": ["string"],
   "field_evidence_used": ["string"],
@@ -257,7 +286,7 @@ def call_openai_analysis(case: dict) -> dict:
         return result
 
     client = OpenAI(api_key=api_key)
-    user_payload = {"case": case, "required_behavior": ["Analyse toutes les sections, surtout preuves terrain et notes terrain.", "Classe selon preuves terrain + choix du mécanicien.", "Ne donne aucune cause finale certaine."]}
+    user_payload = {"case": case, "required_behavior": ["Analyze all sections, especially field evidence and field notes.", "Rank hypotheses according to field evidence plus mechanic selections.", "Do not provide any certain final cause."]}
 
     response = client.responses.create(
         model=model,
@@ -298,6 +327,7 @@ if page == "Login":
     st.info("Va dans Console pour entrer un cas.")
 
 elif page == "Console":
+    hydrate_console_widgets()
     st.title("Console diagnostic")
     st.caption("Entre ce que tu sais. L'app classe les pistes; elle ne devine pas une cause finale.")
     col1, col2, col3 = st.columns([1, 1, 1])
