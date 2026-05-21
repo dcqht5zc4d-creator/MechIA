@@ -1,765 +1,463 @@
-import streamlit as st
-from datetime import datetime
-import hashlib
 import json
 import re
+from datetime import datetime
+import hashlib
+
+import streamlit as st
+
+try:
+    from openai import OpenAI
+except Exception:
+    OpenAI = None
+
+APP_VERSION = "MecaTech IA Clean MVP v0.2.0 — API IA encadrée"
 
 st.set_page_config(page_title="MecaTech IA", page_icon="🔧", layout="wide")
 
-# =========================================================
-# STYLE
-# =========================================================
-st.markdown("""
+st.markdown(
+    """
 <style>
-.stApp { background-color:#101214; color:#f2f2f2; }
-.block-container { padding-top: 1.5rem; padding-bottom: 3rem; }
+.stApp { background:#101214; color:#f2f2f2; }
+section[data-testid="stSidebar"] { background:#151719; }
 h1,h2,h3 { color:#f5f5f5; }
-[data-testid="stSidebar"] { background:#151719; }
-.card { background:#171a1d; border:1px solid #2d3338; border-radius:14px; padding:16px; margin:10px 0; }
-.good { border-left:5px solid #52b788; }
-.warn { border-left:5px solid #f59f00; }
-.danger { border-left:5px solid #ef476f; }
-.info { border-left:5px solid #4dabf7; }
-.small { color:#b8bec4; font-size:0.92rem; }
-.score { font-size:1.4rem; font-weight:700; color:#ff7a1a; }
+.block-container { padding-top:2rem; padding-bottom:3rem; }
+.card { background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.11); border-radius: 14px; padding: 16px; margin: 10px 0; }
+.warning { background:#2b1d14; border-left:5px solid #f59e0b; padding:14px; border-radius:8px; }
+.danger { background:#2a1414; border-left:5px solid #ef4444; padding:14px; border-radius:8px; }
+.ok { background:#14251a; border-left:5px solid #22c55e; padding:14px; border-radius:8px; }
+.info { background:#111827; border-left:5px solid #38bdf8; padding:14px; border-radius:8px; }
+.small { opacity:.82; font-size:.9rem; }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-# =========================================================
-# SESSION STATE — persistence console
-# =========================================================
-DEFAULTS = {
+DEFAULT_FORM = {
     "machine_type": "Chargeuse sur roues",
     "brand_model": "",
     "hours_km": "",
-    "system": "Transmission",
+    "system_affected": "Transmission",
     "fault_nature": "Inconnue / à déterminer",
     "dtcs": "",
     "symptoms": "",
+    "field_evidence_checked": [],
     "field_notes": "",
     "history": "",
-    "checked_evidence": [],
-    "last_analysis": None,
-    "cases": [],
-    "analysis_counter": 0,
-    "previous_snapshot": None,
 }
 
-for k, v in DEFAULTS.items():
-    if k not in st.session_state:
-        st.session_state[k] = v
+for k, v in DEFAULT_FORM.items():
+    st.session_state.setdefault(f"console_{k}", v)
 
-# =========================================================
-# DATA
-# =========================================================
-SYSTEMS = [
-    "Transmission", "Frein", "Hydraulique", "Moteur", "Électrique", "Refroidissement", "Direction", "PTO / accessoires", "Autre / inconnu"
-]
-
-NATURES = [
-    "Inconnue / à déterminer", "Mécanique", "Électrique / commande", "Hydraulique / pression", "Capteur / signal", "Module / logique"
-]
-
-EVIDENCE_OPTIONS = [
-    "Capteur manipulé/débranché change le symptôme",
-    "Bouger le faisceau/connecteur change le symptôme",
-    "Alimentation directe active le composant",
-    "Alimentation directe ne donne aucune réaction",
-    "Redémarrage/reset change temporairement le comportement",
-    "Filtre/huile/pièce remplacée sans changement",
-    "Pression réelle mesurée ou réaction de pression observée",
-    "Fonction mécanique bouge/s’applique après manipulation",
-]
-
-BASE_HYPOTHESES = {
-    "Frein": {
-        "Mécanique": [
-            "Mécanisme de frein, linkage, ajustement, usure ou blocage physique",
-            "Mouvement réel du frein incomplet malgré une commande présente",
-        ],
-        "Électrique / commande": [
-            "Commande électrique, relais, sortie module, alimentation ou ground du circuit de frein",
-            "Solénoïde/valve commandé électriquement mais activation réelle non confirmée",
-        ],
-        "Hydraulique / pression": [
-            "Pression air/hydraulique insuffisante, absente ou non transmise au frein",
-            "Valve de commande, fuite interne ou restriction du circuit de frein",
-        ],
-        "Capteur / signal": [
-            "Capteur de pression/switch de frein ou signal de retour incohérent",
-            "Connecteur/faisceau du capteur ou témoin interprété incorrectement",
-        ],
-        "Module / logique": [
-            "TCU/ECU/interlock bloque ou autorise mal l’application du frein",
-            "État logique/protection qui revient après redémarrage",
-        ],
-    },
-    "Transmission": {
-        "Mécanique": [
-            "Embrayage interne, arbre, train d’engrenage ou dommage mécanique à confirmer",
-            "Usure/blocage interne après exclusion des commandes et pressions",
-        ],
-        "Électrique / commande": [
-            "Sélecteur, faisceau, relais, alimentation ou commande de transmission intermittente",
-            "Sortie module ou commande solénoïde instable sous charge",
-        ],
-        "Hydraulique / pression": [
-            "Pression de commande, valve body, solénoïdes hydrauliques ou fuite interne",
-            "Réponse hydraulique insuffisante malgré demande de rapport",
-        ],
-        "Capteur / signal": [
-            "Capteur vitesse entrée/sortie, position sélecteur ou retour de rapport incohérent",
-            "Signal capteur intermittent causant retour au neutre ou protection",
-        ],
-        "Module / logique": [
-            "Module transmission met le système en protection ou neutre commandé",
-            "Condition logique ou interlock qui annule l’engagement",
-        ],
-    },
-    "Hydraulique": {
-        "Mécanique": ["Valve qui colle, cylindre, linkage ou composant physique bloqué"],
-        "Électrique / commande": ["Commande de valve/solénoïde, sortie module ou faisceau"],
-        "Hydraulique / pression": ["Pompe, restriction, fuite interne, pression principale ou pilotage insuffisant"],
-        "Capteur / signal": ["Capteur de pression ou lecture différente du manomètre"],
-        "Module / logique": ["Commande pilotée limitée par un interlock ou mode protection"],
-    },
-    "Moteur": {
-        "Mécanique": ["Compression, restriction mécanique, usure interne ou distribution"],
-        "Électrique / commande": ["Faisceau, alimentation ECU, commande injecteur/turbo/EGR"],
-        "Hydraulique / pression": ["Pression carburant/rail, pompe, pression d’huile"],
-        "Capteur / signal": ["Capteur MAP/MAF/température/pression incohérent"],
-        "Module / logique": ["Derate, mode protection, post-traitement DPF/SCR/EGR"],
-    },
-    "Électrique": {
-        "Mécanique": ["Composant mécanique commandé électriquement bloqué"],
-        "Électrique / commande": ["Masse, alimentation, relais, fusible, connecteur, fil cassé"],
-        "Hydraulique / pression": ["Commande électrique correcte mais réaction hydraulique absente"],
-        "Capteur / signal": ["Signal capteur intermittent ou hors plage"],
-        "Module / logique": ["CAN/J1939/J1708, module décroche ou bloque une sortie"],
-    },
-    "Refroidissement": {
-        "Mécanique": ["Pompe à eau, thermostat, fan, radiateur obstrué, circulation"],
-        "Électrique / commande": ["Commande fan, relais, capteur température, faisceau"],
-        "Hydraulique / pression": ["Pression système, air dans circuit, fuite interne/externe"],
-        "Capteur / signal": ["Lecture température incohérente vs température réelle"],
-        "Module / logique": ["ECU limite puissance à cause de température lue/réelle"],
-    },
-    "Direction": {
-        "Mécanique": ["Articulation, pivot, bushing, cylindre ou jeu mécanique"],
-        "Électrique / commande": ["Commande valve pilotée, capteur angle/position, faisceau"],
-        "Hydraulique / pression": ["Pression direction, orbitrol, valve ou pompe"],
-        "Capteur / signal": ["Signal angle/position/pression incohérent"],
-        "Module / logique": ["Module ou interlock limite l’assistance"],
-    },
-    "PTO / accessoires": {
-        "Mécanique": ["Clutch, arbre, accessoire bloqué, charge mécanique"],
-        "Électrique / commande": ["Switch, relais, solénoïde, faisceau PTO"],
-        "Hydraulique / pression": ["Pression d’engagement, valve ou circuit piloté"],
-        "Capteur / signal": ["Retour position/vitesse PTO incohérent"],
-        "Module / logique": ["Interlock ou condition sécurité non satisfaite"],
-    },
-}
-
-GENERAL_TESTS = {
-    "Mécanique": [
-        "Confirmer le mouvement physique réel : jeu, blocage, ajustement, usure.",
-        "Comparer commande demandée vs mouvement réel observé.",
-    ],
-    "Électrique / commande": [
-        "Mesurer alimentation et ground sous charge, pas seulement à vide.",
-        "Vérifier relais, fusibles, connecteurs et continuité pendant wiggle test.",
-    ],
-    "Hydraulique / pression": [
-        "Mesurer pression réelle au manomètre selon procédure OEM.",
-        "Comparer pression demandée vs pression réelle et réaction en aval.",
-    ],
-    "Capteur / signal": [
-        "Mesurer alimentation, ground et signal de retour du capteur.",
-        "Comparer valeur capteur réelle avec donnée live du module.",
-    ],
-    "Module / logique": [
-        "Lire états live : demande, autorisation, interlock, protection, retour d’état.",
-        "Comparer avant/après reset ou redémarrage.",
-    ],
-}
-
-# =========================================================
-# HELPERS
-# =========================================================
-def combined_text() -> str:
-    return "\n".join([
-        st.session_state.get("brand_model", ""),
-        st.session_state.get("hours_km", ""),
-        st.session_state.get("dtcs", ""),
-        st.session_state.get("symptoms", ""),
-        st.session_state.get("field_notes", ""),
-        st.session_state.get("history", ""),
-        " ".join(st.session_state.get("checked_evidence", [])),
-    ]).lower()
+st.session_state.setdefault("analysis_counter", 0)
+st.session_state.setdefault("last_analysis", None)
+st.session_state.setdefault("case_history", [])
+st.session_state.setdefault("human_validation", {})
+st.session_state.setdefault("saved_form_at", None)
 
 
-def make_input_snapshot() -> dict:
-    return {
-        "machine_type": st.session_state.machine_type,
-        "brand_model": st.session_state.brand_model,
-        "hours_km": st.session_state.hours_km,
-        "system": st.session_state.system,
-        "fault_nature": st.session_state.fault_nature,
-        "dtcs": st.session_state.dtcs,
-        "symptoms": st.session_state.symptoms,
-        "field_notes": st.session_state.field_notes,
-        "history": st.session_state.history,
-        "checked_evidence": st.session_state.checked_evidence,
-    }
+def now_str() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def input_hash(snapshot: dict) -> str:
-    raw = json.dumps(snapshot, sort_keys=True, ensure_ascii=False)
+def snapshot_form() -> dict:
+    return {k: st.session_state.get(f"console_{k}", v) for k, v in DEFAULT_FORM.items()}
+
+
+def input_hash(data: dict) -> str:
+    raw = json.dumps(data, ensure_ascii=False, sort_keys=True)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
 
 
-def has_any(text: str, words: list[str]) -> bool:
-    return any(w in text for w in words)
+def clear_form():
+    for k, v in DEFAULT_FORM.items():
+        st.session_state[f"console_{k}"] = v
+    st.session_state.saved_form_at = now_str()
 
 
-def extract_codes(text: str) -> list[str]:
-    upper = text.upper()
-    patterns = [
-        r"\b[A-Z]{2,5}\s*\d{3,6}\.\d{1,2}\b",
-        r"\bSPN\s*\d{3,6}\s*FMI\s*\d{1,2}\b",
-        r"\b[PUCB]\d{4}\b",
-    ]
-    found = []
-    for p in patterns:
-        found.extend(re.findall(p, upper))
-    return list(dict.fromkeys(found))
+def save_form():
+    st.session_state.saved_form_at = now_str()
 
 
-# The visible widgets use _keys. The permanent values use normal keys.
-# This prevents Streamlit from deleting the console text when the Console page is not rendered.
-FORM_KEYS = [
-    "machine_type", "brand_model", "hours_km", "system", "fault_nature",
-    "dtcs", "symptoms", "field_notes", "history", "checked_evidence",
+def extract_json(text: str) -> dict:
+    if not text:
+        raise ValueError("Réponse API vide.")
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?", "", cleaned, flags=re.I).strip()
+        cleaned = re.sub(r"```$", "", cleaned).strip()
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        pass
+    match = re.search(r"\{.*\}", cleaned, flags=re.S)
+    if not match:
+        raise ValueError("Aucun JSON détecté dans la réponse API.")
+    return json.loads(match.group(0))
+
+
+def get_api_key():
+    try:
+        return st.secrets.get("OPENAI_API_KEY", "")
+    except Exception:
+        return ""
+
+
+def get_model():
+    try:
+        return st.secrets.get("OPENAI_MODEL", "gpt-4.1-mini")
+    except Exception:
+        return "gpt-4.1-mini"
+
+
+FIELD_EVIDENCE_OPTIONS = [
+    "Commande électrique présente",
+    "Courant/voltage OK sous charge",
+    "Ground/masse OK",
+    "Faisceau/connecteurs vérifiés",
+    "Bouger faisceau/connecteur change le symptôme",
+    "Capteur manipulé/débranché change le symptôme",
+    "Pression présente avant valve mais absente après valve",
+    "Pression sort après manipulation",
+    "Fonction marche avec courant direct",
+    "Fonction ne marche pas avec courant direct",
+    "Redémarrage/reset change temporairement le comportement",
+    "Huile/niveau OK",
+    "Filtre remplacé/OK",
+    "Symptôme présent froid comme chaud",
+    "Symptôme seulement à chaud",
+    "Aucun code actif",
 ]
 
-
-def init_console_widgets():
-    """Rebuild visible widget values from permanent session values when returning to Console."""
-    for k in FORM_KEYS:
-        wk = "_" + k
-        if wk not in st.session_state:
-            st.session_state[wk] = st.session_state.get(k, DEFAULTS.get(k, ""))
+SYSTEMS = ["Transmission", "Frein", "Hydraulique", "Moteur", "Électrique", "Refroidissement", "Direction", "PTO / accessoires", "Autre / inconnu"]
+FAULT_NATURES = ["Inconnue / à déterminer", "Mécanique", "Électrique / commande", "Hydraulique / pression", "Capteur / signal", "Module / logique", "Valve / solénoïde mécanique-hydraulique"]
 
 
-def sync_console_from_widgets():
-    """Copy visible widget values into permanent session storage."""
-    for k in FORM_KEYS:
-        wk = "_" + k
-        if wk in st.session_state:
-            st.session_state[k] = st.session_state[wk]
+def local_fallback_analysis(case: dict) -> dict:
+    text = " ".join([
+        str(case.get("system_affected", "")),
+        str(case.get("fault_nature", "")),
+        str(case.get("dtcs", "")),
+        str(case.get("symptoms", "")),
+        " ".join(case.get("field_evidence_checked", []) or []),
+        str(case.get("field_notes", "")),
+        str(case.get("history", "")),
+    ]).lower()
 
-
-def clear_form():
-    reset_values = {
-        "machine_type": "Chargeuse sur roues",
-        "brand_model": "",
-        "hours_km": "",
-        "system": "Transmission",
-        "fault_nature": "Inconnue / à déterminer",
-        "dtcs": "",
-        "symptoms": "",
-        "field_notes": "",
-        "history": "",
-        "checked_evidence": [],
-    }
-    for k, v in reset_values.items():
-        st.session_state[k] = v
-        st.session_state["_" + k] = v
-
-# =========================================================
-# DIAGNOSTIC ENGINE v0.1.2 — evidence weighted
-# =========================================================
-def detect_facts(text: str, snapshot: dict) -> dict:
-    facts = []
-    conditions = []
-    evidence = []
-    missing = []
-    deductions = []
-
-    codes = extract_codes(text)
-    if codes:
-        facts.append("Codes structurés détectés")
-    elif "aucun code" in text or "pas de code" in text:
-        facts.append("Aucun code rapporté")
-    else:
-        missing.append("Codes actifs/inactifs ou confirmation qu’il n’y en a pas")
-
-    if has_any(text, ["intermittent", "parfois", "revient", "recommence", "pas toujours"]):
-        conditions.append("Intermittent / revient")
-    if has_any(text, ["redémarr", "redemarr", "reset", "repart la machine", "après redémarrage", "apres redemarrage"]):
-        conditions.append("Comportement influencé par redémarrage/reset")
-    if has_any(text, ["à chaud", "a chaud", "chaud"]):
-        conditions.append("À chaud")
-    if has_any(text, ["à froid", "a froid", "froid"]):
-        conditions.append("À froid")
-
-    if has_any(text, ["témoin", "temoin", "voyant", "lumière", "lumiere"]):
-        facts.append("Témoin/voyant mentionné")
-    if has_any(text, ["ne s’applique", "ne s'applique", "s applique pas", "s’applique pas", "ne s engage", "ne s’engage"]):
-        facts.append("Fonction ne s’applique/ne s’engage pas")
-    if has_any(text, ["pression sort", "pression est sortie", "pression sortie"]):
-        evidence.append("Réaction de pression observée")
-    if has_any(text, ["frein s’applique", "frein s'applique", "frein s applique", "brake s’applique", "brake s'applique"]):
-        evidence.append("Fonction mécanique s’applique après manipulation")
-    if has_any(text, ["huile ok", "filtre ok", "ground", "masse", "fusible ok", "courant"]):
-        evidence.append("Tests de base ou électriques mentionnés")
-
-    selected_evidence = snapshot.get("checked_evidence", [])
-    evidence.extend(selected_evidence)
-
-    # Deductions — these are intentionally field_notes-weighted by using full text + checked evidence
-    if (
-        has_any(text, ["capteur", "sensor"])
-        and has_any(text, ["démanch", "demanch", "débranch", "debranch", "manipul", "boug"])
-        and has_any(text, ["pression sort", "pression est sortie", "s’applique", "s'applique", "s applique", "témoin", "temoin", "allume"])
-    ) or "Capteur manipulé/débranché change le symptôme" in selected_evidence:
-        deductions.append({
-            "nature": "Capteur / signal",
-            "title": "Action capteur → réaction du système",
-            "text": "Une action sur le capteur change le comportement. Le capteur, son signal, son connecteur, le faisceau ou l’interprétation module doivent monter en priorité.",
-            "score_bonus": 45,
-            "tests": [
-                "Lire la valeur live du capteur pendant commande.",
-                "Mesurer alimentation, ground et signal retour du capteur.",
-                "Reproduire la manipulation capteur/connecteur en surveillant la donnée live.",
-            ],
-        })
-
-    if (
-        has_any(text, ["faisceau", "connecteur", "wiggle", "bouge le fil", "bougé le fil"])
-        and has_any(text, ["change", "revient", "disparaît", "disparait", "fonctionne", "coupe"])
-    ) or "Bouger le faisceau/connecteur change le symptôme" in selected_evidence:
-        deductions.append({
-            "nature": "Électrique / commande",
-            "title": "Faisceau/connecteur → panne change",
-            "text": "Le comportement change avec le faisceau/connecteur. Priorité au connecteur, pins, continuité, masse et alimentation sous charge.",
-            "score_bonus": 40,
-            "tests": [
-                "Wiggle test contrôlé pendant lecture live.",
-                "Chute de voltage sous charge.",
-                "Inspection corrosion/tension des pins/frottement.",
-            ],
-        })
-
-    if "Alimentation directe active le composant" in selected_evidence or (
-        has_any(text, ["courant direct", "alimenté direct", "alimente direct", "jumper", "shunt"])
-        and has_any(text, ["fonctionne", "marche", "s’applique", "s'applique", "active", "bouge"])
-    ):
-        deductions.append({
-            "nature": "Électrique / commande",
-            "title": "Alimentation directe active le composant",
-            "text": "Le composant en aval semble capable. Priorité à la commande normale, relais, sortie module, autorisations et faisceau amont.",
-            "score_bonus": 35,
-            "tests": ["Comparer alimentation directe vs commande normale.", "Vérifier sortie module/relais/interlock."],
-        })
-
-    if "Alimentation directe ne donne aucune réaction" in selected_evidence or (
-        has_any(text, ["courant direct", "alimenté direct", "alimente direct", "jumper", "shunt"])
-        and has_any(text, ["rien", "aucune réaction", "pas de réaction", "ne bouge pas"])
-    ):
-        deductions.append({
-            "nature": "Mécanique",
-            "title": "Aucune réaction même en alimentation directe",
-            "text": "La priorité se déplace vers l’actionneur, valve, pression ou mouvement mécanique en aval.",
-            "score_bonus": 35,
-            "tests": ["Mesurer résistance/actionneur.", "Confirmer mouvement mécanique et pression en aval."],
-        })
-
-    if "Redémarrage/reset change temporairement le comportement" in selected_evidence or has_any(text, ["redémarr", "redemarr", "reset", "repart la machine"]):
-        deductions.append({
-            "nature": "Module / logique",
-            "title": "Redémarrage/reset influence le symptôme",
-            "text": "Un reset qui change le comportement oriente vers module, état logique, interlock, protection ou capteur incohérent.",
-            "score_bonus": 30,
-            "tests": ["Comparer états live avant/après reset.", "Lire codes avant/après redémarrage.", "Identifier l’interlock ou la condition qui revient."],
-        })
-
-    if not snapshot.get("field_notes", "").strip():
-        missing.append("Essais déjà faits / preuves terrain")
-    if not snapshot.get("history", "").strip():
-        missing.append("Historique machine ou réparations récentes")
-
-    return {
-        "codes": codes,
-        "facts": list(dict.fromkeys(facts)),
-        "conditions": list(dict.fromkeys(conditions)),
-        "evidence": list(dict.fromkeys(evidence)),
-        "missing": list(dict.fromkeys(missing)),
-        "deductions": deductions,
-    }
-
-
-def active_nature(snapshot: dict, detected: dict) -> str:
-    chosen = snapshot["fault_nature"]
-    if chosen != "Inconnue / à déterminer":
-        return chosen
-    if detected["deductions"]:
-        return detected["deductions"][0]["nature"]
-    text = combined_text()
-    if has_any(text, ["mécanique", "mecanique", "bloqué", "bloque", "usé", "use", "cassé", "casse", "linkage", "ajustement"]):
-        return "Mécanique"
-    if has_any(text, ["pression", "hydraulique", "valve", "pompe", "air"]):
-        return "Hydraulique / pression"
-    if has_any(text, ["capteur", "sensor", "signal", "témoin", "temoin", "voyant"]):
-        return "Capteur / signal"
-    if has_any(text, ["tcu", "ecu", "module", "logic", "interlock", "reset", "redémarr", "redemarr"]):
-        return "Module / logique"
-    if has_any(text, ["courant", "voltage", "relais", "fusible", "faisceau", "connecteur", "ground"]):
-        return "Électrique / commande"
-    return "Inconnue / à déterminer"
-
-
-
-def normalize_text_for_diff(value) -> str:
-    if isinstance(value, list):
-        return "\n".join(value)
-    return str(value or "")
-
-
-def field_changes(previous: dict | None, current: dict) -> list[dict]:
-    """Detect visible changes since the last analysis so the app can prove new info was considered."""
-    if not previous:
-        return []
-
-    labels = {
-        "dtcs": "Codes DTC / SPN / FMI",
-        "symptoms": "Symptômes observés",
-        "field_notes": "Notes terrain / essais déjà faits",
-        "history": "Historique machine",
-        "checked_evidence": "Preuves terrain cochées",
-        "system": "Système touché",
-        "fault_nature": "Nature suspectée",
-    }
-
-    changes = []
-    for key, label in labels.items():
-        old = normalize_text_for_diff(previous.get(key, "")).strip()
-        new = normalize_text_for_diff(current.get(key, "")).strip()
-        if old != new:
-            added = new
-            if old and new.startswith(old):
-                added = new[len(old):].strip()
-            changes.append({"field": key, "label": label, "old": old, "new": new, "added": added})
-    return changes
-
-
-def added_text_from_changes(changes: list[dict]) -> str:
-    return "\n".join(c.get("added") or c.get("new", "") for c in changes).lower()
-
-def analyze() -> dict:
-    snapshot = make_input_snapshot()
-    previous_snapshot = None
-    if st.session_state.get("last_analysis"):
-        previous_snapshot = st.session_state.last_analysis.get("snapshot")
-
-    changes = field_changes(previous_snapshot, snapshot)
-    added_text = added_text_from_changes(changes)
-
-    text = "\n".join(str(v) for v in snapshot.values() if isinstance(v, (str, list))).lower()
-    detected = detect_facts(text, snapshot)
-    nature = active_nature(snapshot, detected)
-    system = snapshot["system"]
-
-    # If new information was added after the previous analysis, make that visible and let it influence scoring.
-    if changes:
-        detected["deductions"].append({
-            "nature": nature,
-            "title": "Nouvelles informations prises en compte",
-            "text": "Le formulaire a changé depuis l’analyse précédente. MecaTech IA réévalue le cas avec les nouveaux éléments, même si la priorité finale peut rester identique si l’ajout ne modifie pas la logique mécanique.",
-            "score_bonus": 8,
-            "tests": [
-                "Comparer l’analyse actuelle avec la précédente.",
-                "Vérifier si la nouvelle information confirme une piste, élimine une piste ou demande une mesure objective.",
-            ],
-        })
-
-        # Extra weighting based only on newly added text, not the entire form.
-        if has_any(added_text, ["capteur", "sensor", "signal", "témoin", "temoin", "voyant"]):
-            detected["deductions"].append({
-                "nature": "Capteur / signal",
-                "title": "Nouvel ajout orienté capteur / signal",
-                "text": "Le nouveau texte ajouté parle de capteur, signal ou témoin. La piste capteur/signal doit être réévaluée en priorité.",
-                "score_bonus": 22,
-                "tests": ["Mesurer alimentation, ground et signal retour.", "Comparer signal réel avec donnée live module."],
-            })
-        if has_any(added_text, ["mécanique", "mecanique", "bloqué", "bloque", "usé", "use", "cassé", "casse", "linkage", "ajustement"]):
-            detected["deductions"].append({
-                "nature": "Mécanique",
-                "title": "Nouvel ajout orienté mécanique",
-                "text": "Le nouveau texte ajouté parle de mouvement physique, usure, blocage ou ajustement. La piste mécanique doit être réévaluée en priorité.",
-                "score_bonus": 22,
-                "tests": ["Inspecter mouvement réel, jeu, usure, blocage et ajustement.", "Comparer commande demandée avec mouvement physique."],
-            })
-        if has_any(added_text, ["pression", "hydraulique", "air", "valve", "pompe"]):
-            detected["deductions"].append({
-                "nature": "Hydraulique / pression",
-                "title": "Nouvel ajout orienté pression / hydraulique",
-                "text": "Le nouveau texte ajouté parle de pression, valve ou hydraulique. La piste pression/hydraulique doit être réévaluée.",
-                "score_bonus": 22,
-                "tests": ["Mesurer pression réelle au point pertinent.", "Comparer pression demandée avec réaction en aval."],
-            })
-        if has_any(added_text, ["courant", "voltage", "ground", "masse", "faisceau", "connecteur", "relais", "fusible"]):
-            detected["deductions"].append({
-                "nature": "Électrique / commande",
-                "title": "Nouvel ajout orienté électrique / commande",
-                "text": "Le nouveau texte ajouté parle de courant, masse, connecteur ou commande. La piste électrique/commande doit être réévaluée.",
-                "score_bonus": 20,
-                "tests": ["Mesurer alimentation et ground sous charge.", "Faire wiggle test pendant lecture live."],
-            })
-        if has_any(added_text, ["module", "tcu", "ecu", "interlock", "autorisation", "reset", "redémarr", "redemarr"]):
-            detected["deductions"].append({
-                "nature": "Module / logique",
-                "title": "Nouvel ajout orienté module / logique",
-                "text": "Le nouveau texte ajouté parle de module, TCU, reset ou interlock. La piste logique/module doit être réévaluée.",
-                "score_bonus": 20,
-                "tests": ["Lire états live module : demande, autorisation, interlock.", "Comparer avant/après reset."],
-            })
-
-    system_hyp = BASE_HYPOTHESES.get(system, BASE_HYPOTHESES.get("Électrique"))
-    scores = {n: 10 for n in ["Mécanique", "Électrique / commande", "Hydraulique / pression", "Capteur / signal", "Module / logique"]}
-
-    # Mechanic choices are authoritative
-    scores[nature] = scores.get(nature, 0) + 35
-
-    # Checked evidence + text evidence changes scores strongly
-    for d in detected["deductions"]:
-        scores[d["nature"]] = scores.get(d["nature"], 0) + d["score_bonus"]
-
-    # Text weighting
-    if has_any(text, ["mécanique", "mecanique", "bloqué", "bloque", "cassé", "casse", "usé", "use", "ajustement", "linkage"]):
-        scores["Mécanique"] += 18
-    if has_any(text, ["pression", "hydraulique", "valve", "pompe", "air"]):
-        scores["Hydraulique / pression"] += 18
-    if has_any(text, ["capteur", "sensor", "signal"]):
-        scores["Capteur / signal"] += 18
-    if has_any(text, ["tcu", "ecu", "module", "interlock", "redémarr", "redemarr", "reset"]):
-        scores["Module / logique"] += 18
-    if has_any(text, ["courant", "voltage", "ground", "masse", "faisceau", "connecteur", "relais", "fusible"]):
-        scores["Électrique / commande"] += 14
-
-    # Build prioritized hypotheses
-    ranked_natures = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    system = case.get("system_affected", "Autre / inconnu")
+    selected_nature = case.get("fault_nature", "Inconnue / à déterminer")
     hypotheses = []
-    for n, score in ranked_natures:
-        for h in system_hyp.get(n, []):
-            hypotheses.append({"nature": n, "title": h, "score": score})
+    evidence_used = []
 
-    tests = []
-    for d in detected["deductions"]:
-        tests.extend(d["tests"])
-    for n, _ in ranked_natures[:3]:
-        tests.extend(GENERAL_TESTS.get(n, []))
-    tests = list(dict.fromkeys(tests))
+    def add_h(title, nature, reason, score):
+        hypotheses.append({
+            "title": title,
+            "nature": nature,
+            "score": score,
+            "reason": reason,
+            "confirming_tests": [],
+            "why_not_final": "Piste à confirmer par mesure terrain/OEM; aucune cause finale assignée.",
+        })
 
-    severity = "Critique" if system == "Frein" else ("Élevé" if system in ["Transmission", "Direction"] else "Moyen")
+    command_present = any(w in text for w in ["commande électrique présente", "courant", "voltage", "alimenté", "alimentation", "ground"])
+    pressure_not_passing = any(w in text for w in ["pression ne passe", "ne laisse pas passer", "pression absente après", "absente apres", "valve", "solénoïde", "solenoide"])
+
+    if command_present and pressure_not_passing:
+        evidence_used.append("Commande électrique mentionnée + pression/réaction non transmise.")
+        add_h("Solénoïde/valve alimenté mais bloqué mécaniquement ou hydrauliquement", "Valve / solénoïde mécanique-hydraulique", "Électricité présente ne confirme pas que la valve laisse passer la pression.", 95)
+        add_h("Restriction, spool collé, obstruction ou fuite interne dans le circuit de commande", "Hydraulique / pression", "Le symptôme indique une réaction hydraulique absente ou non transmise.", 88)
+
+    if any(w in text for w in ["capteur manipulé", "débranch", "debranch", "démanch", "demanch", "pression sort", "frein s’applique", "frein s'applique", "témoin allume"]):
+        evidence_used.append("Manipulation capteur/connecteur modifie le comportement.")
+        add_h("Capteur/signal/connecteur ou interprétation module influençant l’autorisation", "Capteur / signal", "Une action sur capteur/connecteur qui modifie le symptôme devient une preuve terrain importante.", 82)
+
+    if "redémarrage" in text or "redemarrage" in text or "reset" in text or "repart" in text:
+        evidence_used.append("Redémarrage/reset change ou ramène le comportement.")
+        add_h("État logique module, interlock, protection ou défaut mémorisé", "Module / logique", "Un reset qui change le comportement oriente vers logique module/interlock ou état capteur.", 78)
+
+    if selected_nature == "Mécanique":
+        add_h(f"Inspection mécanique du système {system}", "Mécanique", "Le mécanicien a priorisé une nature mécanique; l’analyse ne doit pas être détournée par les mots courant/capteur seuls.", 75)
+
+    if selected_nature != "Inconnue / à déterminer" and selected_nature not in [h["nature"] for h in hypotheses]:
+        add_h(f"Piste priorisée par le mécanicien : {selected_nature}", selected_nature, "La nature suspectée choisie par le mécanicien doit orienter le classement.", 72)
+
+    if not hypotheses:
+        add_h(f"Diagnostic structuré du système {system}", selected_nature, "Données insuffisantes pour une orientation forte; garder une analyse méthodique.", 50)
+
+    tests = [
+        "Sécuriser la machine avant essai si frein/direction/propulsion impliqués.",
+        "Comparer commande demandée vs réaction réelle.",
+        "Mesurer alimentation et ground sous charge, pas seulement à vide.",
+        "Mesurer pression avant/après valve ou solénoïde selon procédure OEM.",
+        "Comparer données live : demande, autorisation, état capteur, état sortie module.",
+        "Faire wiggle test connecteur/faisceau si une manipulation change le symptôme.",
+        "Ne remplacer aucune pièce sans test de confirmation.",
+    ]
 
     return {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "input_hash": input_hash(snapshot),
-        "snapshot": snapshot,
-        "system": system,
-        "active_nature": nature,
-        "severity": severity,
-        "detected": detected,
-        "scores": scores,
-        "hypotheses": hypotheses[:8],
-        "tests": tests[:12],
-        "changes": changes,
-        "summary": f"Analyse centrée sur {system}. Nature priorisée : {nature}. Les preuves terrain et les nouveaux ajouts modifient maintenant le classement des pistes.",
+        "analysis_mode": "fallback_local_no_api",
+        "summary": "Analyse locale structurée. API IA non utilisée ou indisponible. Aucune cause finale assignée.",
+        "system_affected": system,
+        "fault_nature_interpreted": selected_nature,
+        "risk_level": "Critique" if system == "Frein" else "À évaluer",
+        "safety_warning": "Validation humaine obligatoire avant remise en service.",
+        "detected_facts": evidence_used or ["Données lues, mais aucune preuve terrain forte détectée."],
+        "field_evidence_used": case.get("field_evidence_checked", []) or [],
+        "hypotheses": sorted(hypotheses, key=lambda h: h["score"], reverse=True)[:5],
+        "contradictions_or_cautions": ["Présence de courant ≠ fonction mécanique/hydraulique confirmée.", "Code ou témoin seul ≠ cause finale."],
+        "missing_information": ["Données live du module / scan tool", "Schéma ou procédure OEM", "Mesures objectives avant/après commande"],
+        "recommended_next_tests": tests,
+        "human_validation_required": True,
     }
 
-# =========================================================
-# UI
-# =========================================================
+
+SYSTEM_PROMPT = """
+Tu es MecaTech IA, assistant de diagnostic mécanique pour équipements lourds.
+Tu ne donnes jamais une cause finale certaine. Tu classes des hypothèses à vérifier.
+Tu tiens compte des preuves terrain cochées et des notes terrain autant ou plus que les symptômes.
+
+Règles mécaniques générales:
+- Commande électrique présente + pression/mouvement absent = priorité après la commande: valve, solénoïde bloqué mécaniquement/hydrauliquement, restriction, obstruction, actionneur ou mécanisme.
+- Électricité présente ne confirme pas le fonctionnement hydraulique/mécanique.
+- Capteur manipulé/débranché + symptôme change = capteur, signal retour, connecteur, faisceau ou interprétation module monte en priorité.
+- Courant direct active composant = composant aval probablement capable; vérifier commande, relais, module, interlock, faisceau amont.
+- Courant direct n'active pas composant = actionneur, valve, pression, mécanique aval monte en priorité.
+- Pression présente avant valve mais absente après valve = valve/spool/solénoïde/restriction monte en priorité.
+- Reset/redémarrage change temporairement le comportement = logique module, interlock, défaut mémorisé ou état capteur à vérifier.
+- Frein de stationnement incertain = risque critique.
+
+Réponds seulement en JSON valide, sans markdown, selon cette structure:
+{
+  "analysis_mode": "api_ai",
+  "summary": "string",
+  "system_affected": "string",
+  "fault_nature_interpreted": "string",
+  "risk_level": "Faible|Moyen|Élevé|Critique|À évaluer",
+  "safety_warning": "string",
+  "detected_facts": ["string"],
+  "field_evidence_used": ["string"],
+  "hypotheses": [{"title":"string","nature":"string","score":0,"reason":"string","confirming_tests":["string"],"why_not_final":"string"}],
+  "contradictions_or_cautions": ["string"],
+  "missing_information": ["string"],
+  "recommended_next_tests": ["string"],
+  "human_validation_required": true
+}
+"""
+
+
+def call_openai_analysis(case: dict) -> dict:
+    api_key = get_api_key()
+    model = get_model()
+    if not api_key:
+        result = local_fallback_analysis(case)
+        result["summary"] = "Clé API absente. " + result["summary"]
+        return result
+    if OpenAI is None:
+        result = local_fallback_analysis(case)
+        result["summary"] = "Librairie openai absente dans requirements.txt. " + result["summary"]
+        return result
+
+    client = OpenAI(api_key=api_key)
+    user_payload = {"case": case, "required_behavior": ["Analyse toutes les sections, surtout preuves terrain et notes terrain.", "Classe selon preuves terrain + choix du mécanicien.", "Ne donne aucune cause finale certaine."]}
+
+    response = client.responses.create(
+        model=model,
+        input=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
+        ],
+        temperature=0.2,
+    )
+
+    text = getattr(response, "output_text", None)
+    if not text:
+        try:
+            text = response.output[0].content[0].text
+        except Exception:
+            text = str(response)
+
+    parsed = extract_json(text)
+    parsed.setdefault("analysis_mode", "api_ai")
+    parsed.setdefault("human_validation_required", True)
+    parsed.setdefault("hypotheses", [])
+    parsed.setdefault("recommended_next_tests", [])
+    return parsed
+
+
 st.sidebar.title("🔧 MecaTech IA")
-st.sidebar.caption("Clean MVP v0.1.4 — Diff-aware analysis")
+st.sidebar.caption("Clean MVP + API IA")
 page = st.sidebar.radio("Navigation", ["Login", "Console", "Résultat", "Validation humaine", "Historique", "Fleet", "Handoff"])
-st.sidebar.divider()
-st.sidebar.write("Principe : aucun diagnostic final sans validation humaine.")
+st.sidebar.markdown("---")
+st.sidebar.caption(f"API OpenAI : {'connectée' if get_api_key() else 'absente'}")
+st.sidebar.caption("Principe : aucune cause finale sans validation humaine.")
+
 
 if page == "Login":
     st.title("MecaTech IA")
     st.subheader("Workshop access")
-    st.markdown("""
-    <div class='card info'>Prototype MVP. La console sert à structurer un diagnostic terrain sans remplacer le mécanicien.</div>
-    """, unsafe_allow_html=True)
-    st.text_input("Technicien / ID", placeholder="Ex: garage-st-jérôme")
-    st.text_input("PIN", type="password")
-    st.button("Entrer", type="primary")
+    st.markdown("""<div class="card"><b>Objectif :</b> assistant de diagnostic mécanique structuré.<br><b>Rôle :</b> classer les pistes, pas remplacer le mécanicien.<br><b>Mode v0.2 :</b> analyse IA encadrée par API OpenAI + fallback local si l'API manque.</div>""", unsafe_allow_html=True)
+    st.info("Va dans Console pour entrer un cas.")
 
 elif page == "Console":
-    init_console_widgets()
     st.title("Console diagnostic")
-    st.caption("Entre ce que tu sais. L’app classe les pistes; elle ne devine pas une cause finale. Les champs restent conservés pendant la navigation.")
+    st.caption("Entre ce que tu sais. L'app classe les pistes; elle ne devine pas une cause finale.")
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col1:
+        st.selectbox("Type de machine", ["Chargeuse sur roues", "Niveleuse", "Camion lourd", "Excavatrice", "Tracteur", "Souffleuse", "Véhicule municipal", "Autre"], key="console_machine_type")
+        st.text_input("Marque / modèle / année", placeholder="Ex: John Deere 772G 2007", key="console_brand_model")
+        st.text_input("Heures / km", placeholder="Ex: 12 345 h", key="console_hours_km")
+    with col2:
+        st.selectbox("Système touché", SYSTEMS, key="console_system_affected")
+        st.selectbox("Nature suspectée", FAULT_NATURES, key="console_fault_nature")
+        st.text_area("Codes DTC / SPN / FMI", placeholder="Ex: TCU 522405.5 / aucun code actif", height=100, key="console_dtcs")
+    with col3:
+        st.multiselect("Preuves terrain cochées", FIELD_EVIDENCE_OPTIONS, key="console_field_evidence_checked")
+        st.markdown("""<div class="info small">Les preuves terrain ont un poids fort dans l'analyse.<br>Ex: commande présente + pression absente après valve ≠ panne électrique simple.</div>""", unsafe_allow_html=True)
 
-    c1, c2, c3 = st.columns([1.1, 1.1, 1])
-    with c1:
-        st.selectbox("Type de machine", ["Chargeuse sur roues", "Camion lourd", "Niveleuse", "Excavatrice", "Tracteur", "Souffleuse", "Véhicule municipal", "Autre"], key="_machine_type", on_change=sync_console_from_widgets)
-        st.text_input("Marque / modèle / année", placeholder="Ex: John Deere 772G 2007", key="_brand_model", on_change=sync_console_from_widgets)
-        st.text_input("Heures / km", placeholder="Ex: 12 345 h", key="_hours_km", on_change=sync_console_from_widgets)
-    with c2:
-        st.selectbox("Système touché", SYSTEMS, key="_system", on_change=sync_console_from_widgets)
-        st.selectbox("Nature suspectée", NATURES, key="_fault_nature", on_change=sync_console_from_widgets)
-        st.text_area("Codes DTC / SPN / FMI", placeholder="Ex: TCU 522405.5 / aucun code actif", height=100, key="_dtcs", on_change=sync_console_from_widgets)
-    with c3:
-        st.multiselect("Preuves terrain cochées", EVIDENCE_OPTIONS, key="_checked_evidence", on_change=sync_console_from_widgets)
-
-    st.text_area("Symptômes observés", placeholder="Décris le symptôme exact : quand, comment, témoins, comportement...", height=130, key="_symptoms", on_change=sync_console_from_widgets)
-    st.text_area("Notes terrain / essais déjà faits", placeholder="Ex: en démanchant le capteur de pression, la pression sort, le frein s’applique et le témoin allume...", height=130, key="_field_notes", on_change=sync_console_from_widgets)
-    st.text_area("Historique machine / travaux récents", placeholder="Pièces remplacées, problème déjà arrivé, contexte flotte...", height=90, key="_history", on_change=sync_console_from_widgets)
+    st.text_area("Symptômes observés", placeholder="Décris le symptôme exact : quand, comment, témoins, comportement...", height=130, key="console_symptoms")
+    st.text_area("Notes terrain / essais déjà faits", placeholder="Ex: solénoïde alimenté mais ne laisse pas passer la pression; pression avant valve OK; frein reste appliqué...", height=140, key="console_field_notes")
+    st.text_area("Historique machine / travaux récents", placeholder="Pièces remplacées, problème déjà arrivé, contexte flotte...", height=90, key="console_history")
 
     b1, b2, b3 = st.columns([2, 1, 1])
     with b1:
         if st.button("🔍 Analyser le problème", type="primary", use_container_width=True):
-            sync_console_from_widgets()
+            save_form()
             st.session_state.analysis_counter += 1
-            result = analyze()
-            result["run_id"] = st.session_state.analysis_counter
-            st.session_state.last_analysis = result
-            st.session_state.cases.append(result)
-            st.success(f"Analyse #{result['run_id']} générée — {result['input_hash']}")
+            case = snapshot_form()
+            case["analysis_number"] = st.session_state.analysis_counter
+            case["timestamp"] = now_str()
+            case["input_hash"] = input_hash(case)
+            with st.spinner("Analyse IA encadrée en cours..."):
+                try:
+                    analysis = call_openai_analysis(case)
+                except Exception as e:
+                    analysis = local_fallback_analysis(case)
+                    analysis["summary"] = f"Erreur API, fallback local utilisé : {e}"
+            package = {"case": case, "analysis": analysis, "created_at": now_str()}
+            st.session_state.last_analysis = package
+            st.session_state.case_history.append(package)
+            st.success(f"Analyse #{case['analysis_number']} générée. Va dans Résultat.")
     with b2:
         if st.button("💾 Sauvegarder", use_container_width=True):
-            sync_console_from_widgets()
-            st.success("Formulaire conservé dans la session. Tu peux changer de page et revenir à Console.")
+            save_form()
+            st.success(f"Formulaire sauvegardé à {st.session_state.saved_form_at}")
     with b3:
-        if st.button("🧹 Effacer le formulaire", use_container_width=True):
+        if st.button("🧹 Effacer", use_container_width=True):
             clear_form()
             st.rerun()
-
-    st.caption("MecaTech IA Clean MVP v0.1.4 · Read the fault. Find the cause. Fix it — once.")
+    if st.session_state.saved_form_at:
+        st.caption(f"Dernière sauvegarde du formulaire : {st.session_state.saved_form_at}")
 
 elif page == "Résultat":
     st.title("Résultat diagnostic")
-    result = st.session_state.last_analysis
-    if not result:
-        st.info("Aucune analyse encore. Va dans Console et clique Analyser.")
+    package = st.session_state.last_analysis
+    if not package:
+        st.info("Aucune analyse. Va dans Console et clique Analyser.")
     else:
-        st.caption(f"Analyse #{result['run_id']} · {result['timestamp']} · empreinte {result['input_hash']}")
-        a, b, c = st.columns(3)
-        a.metric("Système", result["system"])
-        b.metric("Nature priorisée", result["active_nature"])
-        c.metric("Sévérité", result["severity"])
-
-        st.markdown(f"<div class='card danger'><b>Résumé :</b> {result['summary']}</div>", unsafe_allow_html=True)
-
-        st.subheader("Changements depuis l’analyse précédente")
-        if result.get("changes"):
-            for ch in result["changes"]:
-                shown = (ch.get("added") or ch.get("new") or "").strip()
-                if len(shown) > 400:
-                    shown = shown[:400] + "..."
-                st.markdown(f"<div class='card info'><b>{ch['label']}</b><br><span class='small'>{shown}</span></div>", unsafe_allow_html=True)
-        else:
-            st.caption("Première analyse ou aucun changement détecté depuis la dernière analyse.")
-
-        st.subheader("Déductions terrain")
-        deductions = result["detected"]["deductions"]
-        if deductions:
-            for d in deductions:
-                st.markdown(f"<div class='card info'><b>{d['title']}</b><br>{d['text']}</div>", unsafe_allow_html=True)
-        else:
-            st.warning("Aucune déduction terrain forte détectée. Ajoute des essais déjà faits ou coche une preuve terrain.")
-
-        st.subheader("Hypothèses priorisées")
-        for i, h in enumerate(result["hypotheses"], 1):
-            st.markdown(f"""
-            <div class='card'>
-            <b>{i:02d}. {h['title']}</b><br>
-            <span class='small'>Catégorie : {h['nature']}</span><br>
-            <span class='score'>Score {h['score']}</span>
-            </div>
-            """, unsafe_allow_html=True)
-
-        st.subheader("Informations détectées")
+        case = package["case"]
+        analysis = package["analysis"]
+        st.caption(f"Analyse #{case.get('analysis_number')} — {case.get('timestamp')} — empreinte {case.get('input_hash')}")
         c1, c2, c3 = st.columns(3)
-        c1.write("**Faits**")
-        c1.write(result["detected"]["facts"] or "Non détecté")
-        c2.write("**Conditions**")
-        c2.write(result["detected"]["conditions"] or "Non détecté")
-        c3.write("**Preuves terrain**")
-        c3.write(result["detected"]["evidence"] or "Non détecté")
-
-        st.subheader("Tests recommandés")
-        for i, t in enumerate(result["tests"], 1):
+        c1.metric("Système", analysis.get("system_affected", case.get("system_affected", "")))
+        c2.metric("Nature interprétée", analysis.get("fault_nature_interpreted", case.get("fault_nature", "")))
+        c3.metric("Risque", analysis.get("risk_level", "À évaluer"))
+        risk = str(analysis.get("risk_level", "")).lower()
+        box_class = "danger" if "critique" in risk or "élevé" in risk else "warning" if "moyen" in risk or "évaluer" in risk else "ok"
+        st.markdown(f"<div class='{box_class}'><b>Sécurité :</b> {analysis.get('safety_warning','Validation humaine obligatoire.')}</div>", unsafe_allow_html=True)
+        st.markdown("### Résumé")
+        st.write(analysis.get("summary", ""))
+        st.markdown("### Faits et preuves utilisés")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.write("**Faits détectés**")
+            for x in analysis.get("detected_facts", []) or []:
+                st.write(f"- {x}")
+        with col_b:
+            st.write("**Preuves terrain prises en compte**")
+            for x in analysis.get("field_evidence_used", []) or []:
+                st.write(f"- {x}")
+        st.markdown("### Hypothèses priorisées — aucune cause finale assignée")
+        for i, h in enumerate(analysis.get("hypotheses", []) or [], start=1):
+            with st.expander(f"{i:02d}. {h.get('title','Hypothèse')} — {h.get('nature','')} — Score {h.get('score','?')}", expanded=(i == 1)):
+                st.write("**Pourquoi cette piste :**")
+                st.write(h.get("reason", ""))
+                tests = h.get("confirming_tests", []) or []
+                if tests:
+                    st.write("**Tests de confirmation :**")
+                    for t in tests:
+                        st.write(f"- {t}")
+                st.write("**Pourquoi ce n'est pas final :**")
+                st.write(h.get("why_not_final", "Validation terrain requise."))
+        st.markdown("### Prudences / contradictions")
+        for x in analysis.get("contradictions_or_cautions", []) or []:
+            st.warning(x)
+        st.markdown("### Informations manquantes")
+        for x in analysis.get("missing_information", []) or []:
+            st.info(x)
+        st.markdown("### Prochains tests recommandés")
+        for i, t in enumerate(analysis.get("recommended_next_tests", []) or [], start=1):
             st.write(f"{i}. {t}")
-
-        if result["detected"]["missing"]:
-            st.subheader("Informations manquantes")
-            for m in result["detected"]["missing"]:
-                st.info(m)
-
-        st.download_button(
-            "Exporter rapport JSON",
-            data=json.dumps(result, ensure_ascii=False, indent=2),
-            file_name=f"mecatech_rapport_{result['run_id']}_{result['input_hash']}.json",
-            mime="application/json",
-        )
+        with st.expander("Voir l'entrée exacte analysée"):
+            st.json(case)
+        st.download_button("⬇️ Export rapport JSON", data=json.dumps(package, ensure_ascii=False, indent=2), file_name=f"mecatech_analysis_{case.get('analysis_number','x')}.json", mime="application/json")
 
 elif page == "Validation humaine":
     st.title("Validation humaine")
-    result = st.session_state.last_analysis
-    if not result:
+    package = st.session_state.last_analysis
+    if not package:
         st.info("Aucune analyse à valider.")
     else:
-        st.write(f"Analyse #{result['run_id']} — {result['system']} / {result['active_nature']}")
-        verdict = st.radio("Verdict terrain", ["Non validé", "Confirmé", "Partiellement confirmé", "Faux / à corriger", "Inconclusif"])
-        cause = st.text_area("Cause réelle trouvée / notes du mécanicien")
+        case = package["case"]
+        analysis = package["analysis"]
+        key = case["input_hash"]
+        st.write(f"Analyse #{case.get('analysis_number')} — {analysis.get('system_affected', case.get('system_affected'))}")
+        st.write("**Hypothèse principale :**", (analysis.get("hypotheses") or [{}])[0].get("title", "—"))
+        status = st.radio("Résultat terrain", ["Non validé", "Confirmé", "Partiellement confirmé", "Faux diagnostic", "Inconclusif"], key=f"validation_status_{key}")
+        notes = st.text_area("Cause réelle trouvée / notes du mécanicien", key=f"validation_notes_{key}")
         if st.button("Sauvegarder validation", type="primary"):
-            result["validation"] = {"verdict": verdict, "cause": cause, "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+            st.session_state.human_validation[key] = {"status": status, "notes": notes, "saved_at": now_str()}
             st.success("Validation sauvegardée dans la session.")
 
 elif page == "Historique":
-    st.title("Historique")
-    if not st.session_state.cases:
-        st.info("Aucune analyse dans cette session.")
+    st.title("Historique de session")
+    if not st.session_state.case_history:
+        st.info("Aucun historique pour cette session.")
     else:
-        for r in reversed(st.session_state.cases):
-            with st.expander(f"#{r['run_id']} · {r['system']} · {r['active_nature']} · {r['input_hash']}"):
-                st.write(r["summary"])
-                st.write("Hypothèse #1 :", r["hypotheses"][0]["title"] if r["hypotheses"] else "Aucune")
-                st.json(r["snapshot"])
+        for package in reversed(st.session_state.case_history):
+            case = package["case"]
+            analysis = package["analysis"]
+            with st.expander(f"#{case.get('analysis_number')} — {case.get('system_affected')} — {case.get('timestamp')} — {case.get('input_hash')}"):
+                st.write("**Résumé :**", analysis.get("summary", ""))
+                st.write("**Risque :**", analysis.get("risk_level", ""))
+                st.write("**Hypothèse principale :**", (analysis.get("hypotheses") or [{}])[0].get("title", "—"))
+                st.json(case)
 
 elif page == "Fleet":
-    st.title("Fleet overview")
-    st.info("Module futur : registre machine, statut, historique, rapports et priorités atelier.")
-    st.dataframe([
-        {"Unité": "JD-772G", "Système": "Frein", "Statut": "À valider", "Priorité": "Critique"},
-        {"Unité": "ZW180", "Système": "Transmission", "Statut": "Analyse", "Priorité": "Élevée"},
-        {"Unité": "D65", "Système": "PTO/accessoire", "Statut": "Historique", "Priorité": "Moyenne"},
-    ], use_container_width=True)
+    st.title("Fleet")
+    st.info("MVP : section visuelle seulement. Future version : machines, historique par numéro de série, work orders, coûts, rapports.")
 
 elif page == "Handoff":
     st.title("Developer handoff")
     st.markdown("""
-    ### Objectif
-    MecaTech IA structure le raisonnement diagnostic sans assigner de cause finale.
+### MecaTech IA v0.2 — API IA encadrée
 
-    ### MVP inclus
-    - Système touché
-    - Nature suspectée
-    - Preuves terrain cochées
-    - Notes terrain pondérées fortement
-    - Hypothèses classées par score
-    - Validation humaine
-    - Historique session
+**Inclus**
+- Console avec champs persistants.
+- API IA pour analyse structurée.
+- Fallback local si clé/API absente.
+- Résultat structuré : système, nature, preuves, hypothèses, tests, prudences.
+- Validation humaine.
+- Historique de session.
 
-    ### Correction v0.1.4
-    Les informations ajoutées depuis la dernière analyse sont maintenant détectées, affichées et pondérées.
-    Si un ajout ne change pas la priorité mécanique, l’app l’indique au lieu de donner l’impression de l’ignorer.
+**Règles essentielles**
+- Pas de cause finale sans validation humaine.
+- Les notes terrain et preuves cochées ont un poids fort.
+- Commande électrique présente + pression/mouvement absent = vérifier valve/solénoïde mécanique-hydraulique, restriction, pression, actionneur.
+- Web live non inclus dans v0.2.
 
-    ### À ne pas faire
-    - Ne pas prétendre remplacer le mécanicien.
-    - Ne pas donner de cause finale sans validation humaine.
-    - Ne pas laisser les mots-clés écraser le choix du mécanicien.
-    """)
+**Prochaine version**
+- v0.3 : bouton séparé de recherche web publique avec classement des sources A/B/C.
+- v0.4 : documentation PDF/OEM autorisée + historique flotte.
+""")
+
+st.divider()
+st.caption(APP_VERSION + " | Read the fault. Find the cause. Fix it — once.")
