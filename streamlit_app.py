@@ -234,11 +234,46 @@ def extract_codes(text: str) -> list[str]:
     return list(dict.fromkeys(found))
 
 
+# The visible widgets use _keys. The permanent values use normal keys.
+# This prevents Streamlit from deleting the console text when the Console page is not rendered.
+FORM_KEYS = [
+    "machine_type", "brand_model", "hours_km", "system", "fault_nature",
+    "dtcs", "symptoms", "field_notes", "history", "checked_evidence",
+]
+
+
+def init_console_widgets():
+    """Rebuild visible widget values from permanent session values when returning to Console."""
+    for k in FORM_KEYS:
+        wk = "_" + k
+        if wk not in st.session_state:
+            st.session_state[wk] = st.session_state.get(k, DEFAULTS.get(k, ""))
+
+
+def sync_console_from_widgets():
+    """Copy visible widget values into permanent session storage."""
+    for k in FORM_KEYS:
+        wk = "_" + k
+        if wk in st.session_state:
+            st.session_state[k] = st.session_state[wk]
+
+
 def clear_form():
-    for k in ["brand_model", "hours_km", "dtcs", "symptoms", "field_notes", "history"]:
-        st.session_state[k] = ""
-    st.session_state["checked_evidence"] = []
-    st.session_state["fault_nature"] = "Inconnue / à déterminer"
+    reset_values = {
+        "machine_type": "Chargeuse sur roues",
+        "brand_model": "",
+        "hours_km": "",
+        "system": "Transmission",
+        "fault_nature": "Inconnue / à déterminer",
+        "dtcs": "",
+        "symptoms": "",
+        "field_notes": "",
+        "history": "",
+        "checked_evidence": [],
+    }
+    for k, v in reset_values.items():
+        st.session_state[k] = v
+        st.session_state["_" + k] = v
 
 # =========================================================
 # DIAGNOSTIC ENGINE v0.1.2 — evidence weighted
@@ -446,7 +481,7 @@ def analyze() -> dict:
 # UI
 # =========================================================
 st.sidebar.title("🔧 MecaTech IA")
-st.sidebar.caption("Clean MVP v0.1.2 — Field evidence priority")
+st.sidebar.caption("Clean MVP v0.1.3 — Persistent console form")
 page = st.sidebar.radio("Navigation", ["Login", "Console", "Résultat", "Validation humaine", "Historique", "Fleet", "Handoff"])
 st.sidebar.divider()
 st.sidebar.write("Principe : aucun diagnostic final sans validation humaine.")
@@ -462,28 +497,30 @@ if page == "Login":
     st.button("Entrer", type="primary")
 
 elif page == "Console":
+    init_console_widgets()
     st.title("Console diagnostic")
-    st.caption("Entre ce que tu sais. L’app classe les pistes; elle ne devine pas une cause finale.")
+    st.caption("Entre ce que tu sais. L’app classe les pistes; elle ne devine pas une cause finale. Les champs restent conservés pendant la navigation.")
 
     c1, c2, c3 = st.columns([1.1, 1.1, 1])
     with c1:
-        st.selectbox("Type de machine", ["Chargeuse sur roues", "Camion lourd", "Niveleuse", "Excavatrice", "Tracteur", "Souffleuse", "Véhicule municipal", "Autre"], key="machine_type")
-        st.text_input("Marque / modèle / année", placeholder="Ex: John Deere 772G 2007", key="brand_model")
-        st.text_input("Heures / km", placeholder="Ex: 12 345 h", key="hours_km")
+        st.selectbox("Type de machine", ["Chargeuse sur roues", "Camion lourd", "Niveleuse", "Excavatrice", "Tracteur", "Souffleuse", "Véhicule municipal", "Autre"], key="_machine_type", on_change=sync_console_from_widgets)
+        st.text_input("Marque / modèle / année", placeholder="Ex: John Deere 772G 2007", key="_brand_model", on_change=sync_console_from_widgets)
+        st.text_input("Heures / km", placeholder="Ex: 12 345 h", key="_hours_km", on_change=sync_console_from_widgets)
     with c2:
-        st.selectbox("Système touché", SYSTEMS, key="system")
-        st.selectbox("Nature suspectée", NATURES, key="fault_nature")
-        st.text_area("Codes DTC / SPN / FMI", placeholder="Ex: TCU 522405.5 / aucun code actif", height=100, key="dtcs")
+        st.selectbox("Système touché", SYSTEMS, key="_system", on_change=sync_console_from_widgets)
+        st.selectbox("Nature suspectée", NATURES, key="_fault_nature", on_change=sync_console_from_widgets)
+        st.text_area("Codes DTC / SPN / FMI", placeholder="Ex: TCU 522405.5 / aucun code actif", height=100, key="_dtcs", on_change=sync_console_from_widgets)
     with c3:
-        st.multiselect("Preuves terrain cochées", EVIDENCE_OPTIONS, key="checked_evidence")
+        st.multiselect("Preuves terrain cochées", EVIDENCE_OPTIONS, key="_checked_evidence", on_change=sync_console_from_widgets)
 
-    st.text_area("Symptômes observés", placeholder="Décris le symptôme exact : quand, comment, témoins, comportement...", height=130, key="symptoms")
-    st.text_area("Notes terrain / essais déjà faits", placeholder="Ex: en démanchant le capteur de pression, la pression sort, le frein s’applique et le témoin allume...", height=130, key="field_notes")
-    st.text_area("Historique machine / travaux récents", placeholder="Pièces remplacées, problème déjà arrivé, contexte flotte...", height=90, key="history")
+    st.text_area("Symptômes observés", placeholder="Décris le symptôme exact : quand, comment, témoins, comportement...", height=130, key="_symptoms", on_change=sync_console_from_widgets)
+    st.text_area("Notes terrain / essais déjà faits", placeholder="Ex: en démanchant le capteur de pression, la pression sort, le frein s’applique et le témoin allume...", height=130, key="_field_notes", on_change=sync_console_from_widgets)
+    st.text_area("Historique machine / travaux récents", placeholder="Pièces remplacées, problème déjà arrivé, contexte flotte...", height=90, key="_history", on_change=sync_console_from_widgets)
 
     b1, b2, b3 = st.columns([2, 1, 1])
     with b1:
         if st.button("🔍 Analyser le problème", type="primary", use_container_width=True):
+            sync_console_from_widgets()
             st.session_state.analysis_counter += 1
             result = analyze()
             result["run_id"] = st.session_state.analysis_counter
@@ -492,13 +529,14 @@ elif page == "Console":
             st.success(f"Analyse #{result['run_id']} générée — {result['input_hash']}")
     with b2:
         if st.button("💾 Sauvegarder", use_container_width=True):
-            st.success("Formulaire conservé dans la session.")
+            sync_console_from_widgets()
+            st.success("Formulaire conservé dans la session. Tu peux changer de page et revenir à Console.")
     with b3:
         if st.button("🧹 Effacer le formulaire", use_container_width=True):
             clear_form()
             st.rerun()
 
-    st.caption("MecaTech IA Clean MVP v0.1.2 · Read the fault. Find the cause. Fix it — once.")
+    st.caption("MecaTech IA Clean MVP v0.1.3 · Read the fault. Find the cause. Fix it — once.")
 
 elif page == "Résultat":
     st.title("Résultat diagnostic")
