@@ -1,3 +1,4 @@
+
 import streamlit as st
 from datetime import datetime
 import hashlib
@@ -6,8 +7,9 @@ import re
 from typing import Dict, List, Tuple
 
 # =========================================================
-# MecaTech IA — Clean MVP
+# MecaTech IA — Clean MVP v0.1.1
 # Based on Claude Design handoff: system + nature + field evidence
+# Fix: console form persistence across navigation
 # =========================================================
 
 st.set_page_config(
@@ -451,6 +453,28 @@ if "history" not in st.session_state:
 if "validation_log" not in st.session_state:
     st.session_state.validation_log = []
 
+# Persistent console form state.
+# Streamlit removes widget state when widgets are not rendered on another page,
+# so we keep a permanent copy separate from widget keys.
+CONSOLE_DEFAULTS = {
+    "machine_type": MACHINE_TYPES[0],
+    "brand_model": "",
+    "hours_km": "",
+    "system": SYSTEMS[0],
+    "fault_nature": FAULT_NATURES[0],
+    "dtcs": "",
+    "field_tests": [],
+    "symptoms": "",
+    "field_notes": "",
+    "history": "",
+}
+
+if "console_form" not in st.session_state:
+    st.session_state.console_form = CONSOLE_DEFAULTS.copy()
+
+def reset_console_form():
+    st.session_state.console_form = CONSOLE_DEFAULTS.copy()
+
 # =========================================================
 # HELPERS
 # =========================================================
@@ -816,7 +840,7 @@ def export_report(analysis: Dict) -> str:
 
 with st.sidebar:
     st.markdown("## 🔧 MecaTech IA")
-    st.caption("Clean MVP · structured diagnostic assistant")
+    st.caption("Clean MVP v0.1.1 · structured diagnostic assistant")
     page = st.radio(
         "Navigation",
         ["Login", "Console", "Résultat", "Validation humaine", "Historique", "Fleet", "Handoff"],
@@ -839,60 +863,121 @@ elif page == "Console":
     st.title("Console diagnostic")
     st.caption("Entre ce que tu sais. L’app classe les pistes; elle ne devine pas une cause finale.")
 
+    st.markdown(
+        '<div class="meca-card">💾 Les champs de cette console sont maintenant conservés quand tu changes de page. '
+        'Tu peux aller voir Résultat, revenir ici, modifier une phrase et relancer l’analyse.</div>',
+        unsafe_allow_html=True,
+    )
+
+    saved = st.session_state.console_form
+
+    # Buttons outside the form so clearing is intentional and separate from analysis.
+    clear_cols = st.columns([0.22, 0.78])
+    with clear_cols[0]:
+        if st.button("🧹 Effacer le formulaire", use_container_width=True):
+            reset_console_form()
+            st.session_state.last_analysis = None
+            st.rerun()
+
     with st.form("diagnostic_form", clear_on_submit=False):
         c1, c2, c3 = st.columns([1, 1, 1])
 
         with c1:
-            machine_type = st.selectbox("Type de machine", MACHINE_TYPES)
-            brand_model = st.text_input("Marque / modèle / année", placeholder="Ex: John Deere 772G 2007")
-            hours_km = st.text_input("Heures / km", placeholder="Ex: 12 345 h")
+            machine_type = st.selectbox(
+                "Type de machine",
+                MACHINE_TYPES,
+                index=MACHINE_TYPES.index(saved.get("machine_type", MACHINE_TYPES[0]))
+                if saved.get("machine_type", MACHINE_TYPES[0]) in MACHINE_TYPES else 0,
+            )
+            brand_model = st.text_input(
+                "Marque / modèle / année",
+                value=saved.get("brand_model", ""),
+                placeholder="Ex: John Deere 772G 2007",
+            )
+            hours_km = st.text_input(
+                "Heures / km",
+                value=saved.get("hours_km", ""),
+                placeholder="Ex: 12 345 h",
+            )
 
         with c2:
-            system = st.selectbox("Système touché", SYSTEMS)
-            fault_nature = st.selectbox("Nature suspectée", FAULT_NATURES)
-            dtcs = st.text_area("Codes DTC / SPN / FMI", height=108, placeholder="Ex: TCU 522405.5 / aucun code actif")
+            system = st.selectbox(
+                "Système touché",
+                SYSTEMS,
+                index=SYSTEMS.index(saved.get("system", SYSTEMS[0]))
+                if saved.get("system", SYSTEMS[0]) in SYSTEMS else 0,
+            )
+            fault_nature = st.selectbox(
+                "Nature suspectée",
+                FAULT_NATURES,
+                index=FAULT_NATURES.index(saved.get("fault_nature", FAULT_NATURES[0]))
+                if saved.get("fault_nature", FAULT_NATURES[0]) in FAULT_NATURES else 0,
+            )
+            dtcs = st.text_area(
+                "Codes DTC / SPN / FMI",
+                value=saved.get("dtcs", ""),
+                height=108,
+                placeholder="Ex: TCU 522405.5 / aucun code actif",
+            )
 
         with c3:
             st.markdown("##### Preuves terrain cochées")
+            default_tests = [x for x in saved.get("field_tests", []) if x in FIELD_TEST_OPTIONS]
             field_tests = st.multiselect(
                 "Tests déjà faits",
                 FIELD_TEST_OPTIONS,
+                default=default_tests,
                 label_visibility="collapsed",
             )
 
         symptoms = st.text_area(
             "Symptômes observés",
+            value=saved.get("symptoms", ""),
             height=150,
             placeholder="Décris le symptôme exact : quand, comment, témoins, comportement...",
         )
 
         field_notes = st.text_area(
             "Notes terrain / essais déjà faits",
+            value=saved.get("field_notes", ""),
             height=150,
             placeholder="Ex: en démanchant le capteur de pression, la pression sort, le frein s’applique et le témoin allume...",
         )
 
         history = st.text_area(
             "Historique machine / travaux récents",
+            value=saved.get("history", ""),
             height=95,
             placeholder="Pièces remplacées, problème déjà arrivé, contexte flotte...",
         )
 
-        submitted = st.form_submit_button("🔍 Analyser le problème", type="primary", use_container_width=True)
+        b1, b2 = st.columns([0.7, 0.3])
+        with b1:
+            submitted = st.form_submit_button("🔍 Analyser le problème", type="primary", use_container_width=True)
+        with b2:
+            saved_only = st.form_submit_button("💾 Sauvegarder", use_container_width=True)
+
+    input_data = {
+        "machine_type": machine_type,
+        "brand_model": brand_model,
+        "hours_km": hours_km,
+        "system": system,
+        "fault_nature": fault_nature,
+        "dtcs": dtcs,
+        "field_tests": field_tests,
+        "symptoms": symptoms,
+        "field_notes": field_notes,
+        "history": history,
+    }
+
+    if submitted or saved_only:
+        # Permanent copy survives page changes.
+        st.session_state.console_form = input_data.copy()
+
+    if saved_only and not submitted:
+        st.success("Formulaire sauvegardé. Tu peux changer de page et revenir sans perdre les textes.")
 
     if submitted:
-        input_data = {
-            "machine_type": machine_type,
-            "brand_model": brand_model,
-            "hours_km": hours_km,
-            "system": system,
-            "fault_nature": fault_nature,
-            "dtcs": dtcs,
-            "field_tests": field_tests,
-            "symptoms": symptoms,
-            "field_notes": field_notes,
-            "history": history,
-        }
         analysis = run_diagnostic(input_data)
         st.session_state.last_analysis = analysis
         st.session_state.history.append(analysis)
@@ -1067,4 +1152,4 @@ MecaTech IA is a structured diagnostic assistant for mechanics. It does not repl
     )
 
 st.divider()
-st.caption("MecaTech IA Clean MVP · Read the fault. Find the cause. Fix it — once.")
+st.caption("MecaTech IA Clean MVP v0.1.1 · Read the fault. Find the cause. Fix it — once.")
