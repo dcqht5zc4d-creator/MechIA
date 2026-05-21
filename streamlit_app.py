@@ -42,6 +42,7 @@ DEFAULTS = {
     "last_analysis": None,
     "cases": [],
     "analysis_counter": 0,
+    "previous_snapshot": None,
 }
 
 for k, v in DEFAULTS.items():
@@ -418,12 +419,111 @@ def active_nature(snapshot: dict, detected: dict) -> str:
     return "Inconnue / à déterminer"
 
 
+
+def normalize_text_for_diff(value) -> str:
+    if isinstance(value, list):
+        return "\n".join(value)
+    return str(value or "")
+
+
+def field_changes(previous: dict | None, current: dict) -> list[dict]:
+    """Detect visible changes since the last analysis so the app can prove new info was considered."""
+    if not previous:
+        return []
+
+    labels = {
+        "dtcs": "Codes DTC / SPN / FMI",
+        "symptoms": "Symptômes observés",
+        "field_notes": "Notes terrain / essais déjà faits",
+        "history": "Historique machine",
+        "checked_evidence": "Preuves terrain cochées",
+        "system": "Système touché",
+        "fault_nature": "Nature suspectée",
+    }
+
+    changes = []
+    for key, label in labels.items():
+        old = normalize_text_for_diff(previous.get(key, "")).strip()
+        new = normalize_text_for_diff(current.get(key, "")).strip()
+        if old != new:
+            added = new
+            if old and new.startswith(old):
+                added = new[len(old):].strip()
+            changes.append({"field": key, "label": label, "old": old, "new": new, "added": added})
+    return changes
+
+
+def added_text_from_changes(changes: list[dict]) -> str:
+    return "\n".join(c.get("added") or c.get("new", "") for c in changes).lower()
+
 def analyze() -> dict:
     snapshot = make_input_snapshot()
+    previous_snapshot = None
+    if st.session_state.get("last_analysis"):
+        previous_snapshot = st.session_state.last_analysis.get("snapshot")
+
+    changes = field_changes(previous_snapshot, snapshot)
+    added_text = added_text_from_changes(changes)
+
     text = "\n".join(str(v) for v in snapshot.values() if isinstance(v, (str, list))).lower()
     detected = detect_facts(text, snapshot)
     nature = active_nature(snapshot, detected)
     system = snapshot["system"]
+
+    # If new information was added after the previous analysis, make that visible and let it influence scoring.
+    if changes:
+        detected["deductions"].append({
+            "nature": nature,
+            "title": "Nouvelles informations prises en compte",
+            "text": "Le formulaire a changé depuis l’analyse précédente. MecaTech IA réévalue le cas avec les nouveaux éléments, même si la priorité finale peut rester identique si l’ajout ne modifie pas la logique mécanique.",
+            "score_bonus": 8,
+            "tests": [
+                "Comparer l’analyse actuelle avec la précédente.",
+                "Vérifier si la nouvelle information confirme une piste, élimine une piste ou demande une mesure objective.",
+            ],
+        })
+
+        # Extra weighting based only on newly added text, not the entire form.
+        if has_any(added_text, ["capteur", "sensor", "signal", "témoin", "temoin", "voyant"]):
+            detected["deductions"].append({
+                "nature": "Capteur / signal",
+                "title": "Nouvel ajout orienté capteur / signal",
+                "text": "Le nouveau texte ajouté parle de capteur, signal ou témoin. La piste capteur/signal doit être réévaluée en priorité.",
+                "score_bonus": 22,
+                "tests": ["Mesurer alimentation, ground et signal retour.", "Comparer signal réel avec donnée live module."],
+            })
+        if has_any(added_text, ["mécanique", "mecanique", "bloqué", "bloque", "usé", "use", "cassé", "casse", "linkage", "ajustement"]):
+            detected["deductions"].append({
+                "nature": "Mécanique",
+                "title": "Nouvel ajout orienté mécanique",
+                "text": "Le nouveau texte ajouté parle de mouvement physique, usure, blocage ou ajustement. La piste mécanique doit être réévaluée en priorité.",
+                "score_bonus": 22,
+                "tests": ["Inspecter mouvement réel, jeu, usure, blocage et ajustement.", "Comparer commande demandée avec mouvement physique."],
+            })
+        if has_any(added_text, ["pression", "hydraulique", "air", "valve", "pompe"]):
+            detected["deductions"].append({
+                "nature": "Hydraulique / pression",
+                "title": "Nouvel ajout orienté pression / hydraulique",
+                "text": "Le nouveau texte ajouté parle de pression, valve ou hydraulique. La piste pression/hydraulique doit être réévaluée.",
+                "score_bonus": 22,
+                "tests": ["Mesurer pression réelle au point pertinent.", "Comparer pression demandée avec réaction en aval."],
+            })
+        if has_any(added_text, ["courant", "voltage", "ground", "masse", "faisceau", "connecteur", "relais", "fusible"]):
+            detected["deductions"].append({
+                "nature": "Électrique / commande",
+                "title": "Nouvel ajout orienté électrique / commande",
+                "text": "Le nouveau texte ajouté parle de courant, masse, connecteur ou commande. La piste électrique/commande doit être réévaluée.",
+                "score_bonus": 20,
+                "tests": ["Mesurer alimentation et ground sous charge.", "Faire wiggle test pendant lecture live."],
+            })
+        if has_any(added_text, ["module", "tcu", "ecu", "interlock", "autorisation", "reset", "redémarr", "redemarr"]):
+            detected["deductions"].append({
+                "nature": "Module / logique",
+                "title": "Nouvel ajout orienté module / logique",
+                "text": "Le nouveau texte ajouté parle de module, TCU, reset ou interlock. La piste logique/module doit être réévaluée.",
+                "score_bonus": 20,
+                "tests": ["Lire états live module : demande, autorisation, interlock.", "Comparer avant/après reset."],
+            })
 
     system_hyp = BASE_HYPOTHESES.get(system, BASE_HYPOTHESES.get("Électrique"))
     scores = {n: 10 for n in ["Mécanique", "Électrique / commande", "Hydraulique / pression", "Capteur / signal", "Module / logique"]}
@@ -474,14 +574,15 @@ def analyze() -> dict:
         "scores": scores,
         "hypotheses": hypotheses[:8],
         "tests": tests[:12],
-        "summary": f"Analyse centrée sur {system}. Nature priorisée : {nature}. Les preuves terrain modifient maintenant le classement des pistes.",
+        "changes": changes,
+        "summary": f"Analyse centrée sur {system}. Nature priorisée : {nature}. Les preuves terrain et les nouveaux ajouts modifient maintenant le classement des pistes.",
     }
 
 # =========================================================
 # UI
 # =========================================================
 st.sidebar.title("🔧 MecaTech IA")
-st.sidebar.caption("Clean MVP v0.1.3 — Persistent console form")
+st.sidebar.caption("Clean MVP v0.1.4 — Diff-aware analysis")
 page = st.sidebar.radio("Navigation", ["Login", "Console", "Résultat", "Validation humaine", "Historique", "Fleet", "Handoff"])
 st.sidebar.divider()
 st.sidebar.write("Principe : aucun diagnostic final sans validation humaine.")
@@ -536,7 +637,7 @@ elif page == "Console":
             clear_form()
             st.rerun()
 
-    st.caption("MecaTech IA Clean MVP v0.1.3 · Read the fault. Find the cause. Fix it — once.")
+    st.caption("MecaTech IA Clean MVP v0.1.4 · Read the fault. Find the cause. Fix it — once.")
 
 elif page == "Résultat":
     st.title("Résultat diagnostic")
@@ -551,6 +652,16 @@ elif page == "Résultat":
         c.metric("Sévérité", result["severity"])
 
         st.markdown(f"<div class='card danger'><b>Résumé :</b> {result['summary']}</div>", unsafe_allow_html=True)
+
+        st.subheader("Changements depuis l’analyse précédente")
+        if result.get("changes"):
+            for ch in result["changes"]:
+                shown = (ch.get("added") or ch.get("new") or "").strip()
+                if len(shown) > 400:
+                    shown = shown[:400] + "..."
+                st.markdown(f"<div class='card info'><b>{ch['label']}</b><br><span class='small'>{shown}</span></div>", unsafe_allow_html=True)
+        else:
+            st.caption("Première analyse ou aucun changement détecté depuis la dernière analyse.")
 
         st.subheader("Déductions terrain")
         deductions = result["detected"]["deductions"]
@@ -643,9 +754,9 @@ elif page == "Handoff":
     - Validation humaine
     - Historique session
 
-    ### Correction v0.1.2
-    Les informations ajoutées dans **Notes terrain / essais déjà faits** modifient maintenant directement le classement.
-    Les preuves terrain ont plus de poids que les simples symptômes.
+    ### Correction v0.1.4
+    Les informations ajoutées depuis la dernière analyse sont maintenant détectées, affichées et pondérées.
+    Si un ajout ne change pas la priorité mécanique, l’app l’indique au lieu de donner l’impression de l’ignorer.
 
     ### À ne pas faire
     - Ne pas prétendre remplacer le mécanicien.
